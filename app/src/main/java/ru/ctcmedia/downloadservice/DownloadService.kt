@@ -43,7 +43,10 @@ object DownloadServiceFacade {
 class DownloadService : IntentService("DownloadService"), FetchListener {
 
     override fun onHandleIntent(intent: Intent) {
-        val fetchConfig = FetchConfiguration.Builder(this).setGlobalNetworkType(Settings.networkType.value).build()
+        val fetchConfig = FetchConfiguration.Builder(this)
+            .setDownloadConcurrentLimit(Settings.concurrentDownloads)
+            .setGlobalNetworkType(Settings.networkType.value)
+            .build()
         val fetch = Fetch.getInstance(fetchConfig)
         fetch.addListener(this)
 
