@@ -1,0 +1,87 @@
+package ru.ctcmedia
+
+import android.os.Bundle
+import android.os.Parcel
+import android.os.Parcelable.Creator
+import android.support.v7.app.AppCompatActivity
+import android.util.Log
+import ru.ctcmedia.downloadservice.R
+import ru.ctcmedia.downloadservice.interfaces.DownloadServiceListener
+import ru.ctcmedia.downloadservice.interfaces.Downloadable
+import ru.ctcmedia.downloadservice.settings.Settings
+import java.util.Timer
+import java.util.TimerTask
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        Settings.context = { this }
+        val file = File()
+        file.download()
+
+        Timer().schedule(object : TimerTask() {
+            override fun run() {
+                file.cancel()
+            }
+        }, 10000)
+    }
+}
+
+class File() : Downloadable, DownloadServiceListener {
+
+    private val simpleName = this::class.java.simpleName
+
+    init {
+        Broadcaster.register<DownloadServiceListener>(this)
+    }
+
+    override var remoteUrl: String = "http://mirror.filearena.net/pub/speed/SpeedTest_256MB.dat"
+    override var localUrl: String = "/video"
+
+    constructor(parcel: Parcel) : this() {
+        remoteUrl = parcel.readString()
+        localUrl = parcel.readString()
+    }
+
+    override fun onStart(downloadableID: String) {
+        Log.d(simpleName, "onStart")
+    }
+
+    override fun onProgress(downloadableID: String, progress: Int) {
+        Log.d(simpleName, "onProgress $downloadableID $progress")
+    }
+
+    override fun onPause(downloadableID: String) {
+        Log.d(simpleName, "onPause")
+    }
+
+    override fun onError(downloadableID: String) {
+        Log.d(simpleName, "onError")
+    }
+
+    override fun onFinish(downloadableID: String) {
+        Log.d(simpleName, "onFinish")
+    }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(remoteUrl)
+        parcel.writeString(localUrl)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Creator<File> {
+        override fun createFromParcel(parcel: Parcel): File {
+            return File(parcel)
+        }
+
+        override fun newArray(size: Int): Array<File?> {
+            return arrayOfNulls(size)
+        }
+    }
+}
