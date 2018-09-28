@@ -7,13 +7,16 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.support.v4.content.ContextCompat
+import android.util.Log
 import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.Error
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.FetchListener
 import com.tonyodev.fetch2.Request
+import com.tonyodev.fetch2.Status.DOWNLOADING
 import com.tonyodev.fetch2core.DownloadBlock
+import com.tonyodev.fetch2core.Func
 import ru.ctcmedia.Broadcaster
 import ru.ctcmedia.downloadservice.interfaces.DownloadServiceListener
 import ru.ctcmedia.downloadservice.interfaces.Downloadable
@@ -36,13 +39,44 @@ object DownloadServiceFacade {
     }
 
     fun cancel(downloadable: Downloadable) {
-        val context = Settings.context?.invoke() ?: throw Exception()
-        downloadableList.clear()
-        context.stopService(Intent(context, DownloadService::class.java))
+        Broadcaster.notify<ActionsListener> {
+            this.cancel(downloadable)
+            downloadableList.remove(downloadable)
+        }
+    }
+
+    fun current(): Download {
+        var result: Download? = null
+        Broadcaster.notify<ActionsListener> {
+            result = this.current()
+        }
+
+        return result!!
     }
 }
 
-class DownloadService : IntentService("DownloadService"), FetchListener {
+class DownloadService : IntentService("DownloadService"), FetchListener, ActionsListener {
+
+    private lateinit var fetchConfig: FetchConfiguration
+    private lateinit var fetch: Fetch
+
+    override fun downloadNext() {
+    }
+
+    override fun cancel(downloadable: Downloadable) {
+        var download: Download? = null
+        val fileName = Uri.parse(downloadable.remoteUrl).lastPathSegment
+        fetch.getDownloads(Func { list ->
+            download = list.asSequence().first { it.file == "${this.filesDir}/$fileName" }
+        })
+        fetch.cancel(download!!.id)
+    }
+
+    override fun current(): Download {
+        var result: Download? = null
+        fetch.getDownloadsWithStatus(DOWNLOADING, Func { result = it.first() })
+        return result!!
+    }
 
     private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
     private val notificationBuilder: Notification.Builder by lazy {
@@ -54,16 +88,18 @@ class DownloadService : IntentService("DownloadService"), FetchListener {
 
     override fun onCreate() {
         super.onCreate()
+        fetchConfig = FetchConfiguration.Builder(this)
+            .setDownloadConcurrentLimit(Settings.concurrentDownloads)
+            .setGlobalNetworkType(Settings.networkType.value)
+            .build()
+        fetch = Fetch.getInstance(fetchConfig)
+
+        Broadcaster.register(ActionsListener::class, this)
 
         startForeground(1, notificationBuilder.build())
     }
 
     override fun onHandleIntent(intent: Intent) {
-        val fetchConfig = FetchConfiguration.Builder(this)
-            .setDownloadConcurrentLimit(Settings.concurrentDownloads)
-            .setGlobalNetworkType(Settings.networkType.value)
-            .build()
-        val fetch = Fetch.getInstance(fetchConfig)
         fetch.addListener(this)
 
         val downloadable = intent.getParcelableExtra<Downloadable>(DOWNLOADABLE_TAG)

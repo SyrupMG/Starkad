@@ -5,6 +5,7 @@ import android.os.Parcel
 import android.os.Parcelable.Creator
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
+import ru.ctcmedia.downloadservice.DownloadServiceFacade
 import ru.ctcmedia.downloadservice.R
 import ru.ctcmedia.downloadservice.interfaces.DownloadServiceListener
 import ru.ctcmedia.downloadservice.interfaces.Downloadable
@@ -26,7 +27,7 @@ class MainActivity : AppCompatActivity() {
 
         Timer().schedule(object : TimerTask() {
             override fun run() {
-                file.cancel()
+                DownloadServiceFacade.cancel(file)
             }
         }, 10000)
     }
@@ -40,6 +41,7 @@ class File() : Downloadable, DownloadServiceListener {
         Broadcaster.register<DownloadServiceListener>(this)
     }
 
+    override var downloadableUniqueId: Int = super.downloadableUniqueId
     override var remoteUrl: String = ""
     override var localUrl: String = ""
 
@@ -50,6 +52,7 @@ class File() : Downloadable, DownloadServiceListener {
     constructor(parcel: Parcel) : this() {
         remoteUrl = parcel.readString()
         localUrl = parcel.readString()
+        downloadableUniqueId = parcel.readInt()
     }
 
     override fun onStart(downloadableID: String) {
