@@ -18,9 +18,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        Settings.context = { this }
-        val file = File()
+        Settings.context = { applicationContext }
+        val file = File("http://mirror.filearena.net/pub/speed/SpeedTest_256MB.dat")
+        val file1 = File("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat")
         file.download()
+        file1.download()
 
         Timer().schedule(object : TimerTask() {
             override fun run() {
@@ -38,8 +40,12 @@ class File() : Downloadable, DownloadServiceListener {
         Broadcaster.register<DownloadServiceListener>(this)
     }
 
-    override var remoteUrl: String = "http://mirror.filearena.net/pub/speed/SpeedTest_256MB.dat"
-    override var localUrl: String = "/video"
+    override var remoteUrl: String = ""
+    override var localUrl: String = ""
+
+    constructor(url: String) : this() {
+        remoteUrl = url
+    }
 
     constructor(parcel: Parcel) : this() {
         remoteUrl = parcel.readString()

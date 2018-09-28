@@ -1,6 +1,9 @@
 package ru.ctcmedia.downloadservice
 
 import android.app.IntentService
+import android.app.Notification
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.support.v4.content.ContextCompat
@@ -16,7 +19,6 @@ import ru.ctcmedia.downloadservice.interfaces.DownloadServiceListener
 import ru.ctcmedia.downloadservice.interfaces.Downloadable
 import ru.ctcmedia.downloadservice.settings.Settings
 import ru.ctcmedia.notify
-import java.io.File
 
 const val DOWNLOADABLE_TAG = "downloadable_to_service"
 
@@ -42,6 +44,20 @@ object DownloadServiceFacade {
 
 class DownloadService : IntentService("DownloadService"), FetchListener {
 
+    private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
+    private val notificationBuilder: Notification.Builder by lazy {
+        Notification.Builder(this)
+            .setContentTitle("Скачивание")
+            .setContentText("Скачивается...")
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+
+        startForeground(1, notificationBuilder.build())
+    }
+
     override fun onHandleIntent(intent: Intent) {
         val fetchConfig = FetchConfiguration.Builder(this)
             .setDownloadConcurrentLimit(Settings.concurrentDownloads)
@@ -52,7 +68,7 @@ class DownloadService : IntentService("DownloadService"), FetchListener {
 
         val downloadable = intent.getParcelableExtra<Downloadable>(DOWNLOADABLE_TAG)
         val fileName = Uri.parse(downloadable.remoteUrl).lastPathSegment
-        val request = Request(downloadable.remoteUrl, "${this.filesDir}${File.pathSeparator}$fileName")
+        val request = Request(downloadable.remoteUrl, "${this.filesDir}/$fileName")
         fetch.enqueue(request, null, null)
     }
 
@@ -63,6 +79,10 @@ class DownloadService : IntentService("DownloadService"), FetchListener {
     }
 
     override fun onCompleted(download: Download) {
+        val notification = notificationBuilder
+            .setContentTitle("Файл скачан")
+            .build()
+        notificationManager.notify(download.id, notification)
         Broadcaster.notify<DownloadServiceListener> { onFinish(download.id.toString()) }
     }
 
@@ -73,6 +93,10 @@ class DownloadService : IntentService("DownloadService"), FetchListener {
     }
 
     override fun onError(download: Download, error: Error, throwable: Throwable?) {
+        val notification = notificationBuilder
+            .setContentTitle("Ошибка!")
+            .build()
+        notificationManager.notify(download.id, notification)
         Broadcaster.notify<DownloadServiceListener> { onError(download.id.toString()) }
     }
 
@@ -81,6 +105,12 @@ class DownloadService : IntentService("DownloadService"), FetchListener {
     }
 
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
+        notificationBuilder.setProgress(100, download.progress, false)
+        notificationManager.notify(
+            download.id, notificationBuilder
+                .setContentText("${download.progress} из 100")
+                .build()
+        )
         Broadcaster.notify<DownloadServiceListener> { onProgress(download.id.toString(), download.progress) }
     }
 
@@ -98,5 +128,10 @@ class DownloadService : IntentService("DownloadService"), FetchListener {
     }
 
     override fun onWaitingNetwork(download: Download) {
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        notificationManager.cancelAll()
     }
 }
