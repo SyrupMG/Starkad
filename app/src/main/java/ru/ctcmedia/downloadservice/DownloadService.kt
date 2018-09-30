@@ -6,7 +6,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.support.v4.content.ContextCompat
+import android.support.v4.content.ContextCompat.startForegroundService
 import android.util.Log
 import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.Error
@@ -35,7 +35,7 @@ object DownloadServiceFacade {
             putExtra(DOWNLOADABLE_TAG, downloadable)
         }
         downloadableList.add(downloadable)
-        ContextCompat.startForegroundService(context, intent)
+        startForegroundService(context, intent)
     }
 
     fun cancel(downloadable: Downloadable) {
@@ -65,17 +65,15 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
 
     override fun cancel(downloadable: Downloadable) {
         var download: Download? = null
-        val fileName = Uri.parse(downloadable.remoteUrl).lastPathSegment
-        fetch.getDownloads(Func { list ->
-            download = list.asSequence().first { it.file == "${this.filesDir}/$fileName" }
-        })
-        fetch.cancel(download!!.id)
+        fetch.getDownloads(Func { list -> download = list.asSequence().firstOrNull { it.identifier == downloadable.downloadableUniqueId.toLong() } })
+        val result = download ?: return
+        fetch.cancel(result.id)
     }
 
-    override fun current(): Download {
+    override fun current(): Download? {
         var result: Download? = null
         fetch.getDownloadsWithStatus(DOWNLOADING, Func { result = it.first() })
-        return result!!
+        return result
     }
 
     private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
@@ -95,8 +93,6 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
         fetch = Fetch.getInstance(fetchConfig)
 
         Broadcaster.register(ActionsListener::class, this)
-
-        startForeground(1, notificationBuilder.build())
     }
 
     override fun onHandleIntent(intent: Intent) {
@@ -105,43 +101,52 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
         val downloadable = intent.getParcelableExtra<Downloadable>(DOWNLOADABLE_TAG)
         val fileName = Uri.parse(downloadable.remoteUrl).lastPathSegment
         val request = Request(downloadable.remoteUrl, "${this.filesDir}/$fileName")
+        request.identifier = downloadable.downloadableUniqueId.toLong()
         fetch.enqueue(request, null, null)
     }
 
     override fun onAdded(download: Download) {
+        Log.d(DownloadService::class.java.simpleName, "OnAdded")
     }
 
     override fun onCancelled(download: Download) {
+        Log.d(DownloadService::class.java.simpleName, "OnCancelled")
     }
 
     override fun onCompleted(download: Download) {
         val notification = notificationBuilder
             .setContentTitle("Файл скачан")
+            .setOngoing(true)
             .build()
         notificationManager.notify(download.id, notification)
         Broadcaster.notify<DownloadServiceListener> { onFinish(download.id.toString()) }
     }
 
     override fun onDeleted(download: Download) {
+        Log.d(DownloadService::class.java.simpleName, "OnDeleted")
     }
 
     override fun onDownloadBlockUpdated(download: Download, downloadBlock: DownloadBlock, totalBlocks: Int) {
+        Log.d(DownloadService::class.java.simpleName, "OnDownloadBlockUpdated")
     }
 
     override fun onError(download: Download, error: Error, throwable: Throwable?) {
         val notification = notificationBuilder
             .setContentTitle("Ошибка!")
+            .setOngoing(true)
             .build()
         notificationManager.notify(download.id, notification)
         Broadcaster.notify<DownloadServiceListener> { onError(download.id.toString()) }
     }
 
     override fun onPaused(download: Download) {
+        Log.d(DownloadService::class.java.simpleName, "OnPaused")
         Broadcaster.notify<DownloadServiceListener> { onPause(download.id.toString()) }
     }
 
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
         notificationBuilder.setProgress(100, download.progress, false)
+        notificationBuilder.setOngoing(false)
         notificationManager.notify(
             download.id, notificationBuilder
                 .setContentText("${download.progress} из 100")
@@ -151,12 +156,15 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
     }
 
     override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
+        Log.d(DownloadService::class.java.simpleName, "OnQueued")
     }
 
     override fun onRemoved(download: Download) {
+        Log.d(DownloadService::class.java.simpleName, "OnRemoved")
     }
 
     override fun onResumed(download: Download) {
+        Log.d(DownloadService::class.java.simpleName, "OnResumed")
     }
 
     override fun onStarted(download: Download, downloadBlocks: List<DownloadBlock>, totalBlocks: Int) {
@@ -164,10 +172,12 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
     }
 
     override fun onWaitingNetwork(download: Download) {
+        Log.d(DownloadService::class.java.simpleName, "OnWaitingNetwork")
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        notificationManager.cancelAll()
-    }
+//    override fun onDestroy() {
+//        super.onDestroy()
+//        Log.d(DownloadService::class.java.simpleName, "OnDestroy")
+//        notificationManager.cancelAll()
+//    }
 }

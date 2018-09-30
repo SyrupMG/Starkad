@@ -10,6 +10,7 @@ import ru.ctcmedia.downloadservice.R
 import ru.ctcmedia.downloadservice.interfaces.DownloadServiceListener
 import ru.ctcmedia.downloadservice.interfaces.Downloadable
 import ru.ctcmedia.downloadservice.settings.Settings
+import java.util.Random
 import java.util.Timer
 import java.util.TimerTask
 
@@ -41,7 +42,8 @@ class File() : Downloadable, DownloadServiceListener {
         Broadcaster.register<DownloadServiceListener>(this)
     }
 
-    override var downloadableUniqueId: Int = super.downloadableUniqueId
+    override var downloadableUniqueId: Int = Random().nextInt()
+    private set
     override var remoteUrl: String = ""
     override var localUrl: String = ""
 
@@ -78,6 +80,7 @@ class File() : Downloadable, DownloadServiceListener {
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         parcel.writeString(remoteUrl)
         parcel.writeString(localUrl)
+        parcel.writeInt(downloadableUniqueId)
     }
 
     override fun describeContents(): Int {
