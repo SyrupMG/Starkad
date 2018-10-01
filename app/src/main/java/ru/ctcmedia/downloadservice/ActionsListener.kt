@@ -6,5 +6,5 @@ import ru.ctcmedia.downloadservice.interfaces.Downloadable
 interface ActionsListener {
     fun downloadNext()
     fun cancel(downloadable: Downloadable)
-    fun current(): Download?
+    fun current(callback: (List<Download>?) -> Unit)
 }

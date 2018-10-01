@@ -3,6 +3,7 @@ package ru.ctcmedia.downloadservice
 import android.app.IntentService
 import android.app.Notification
 import android.app.NotificationManager
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -30,7 +31,7 @@ object DownloadServiceFacade {
     private val downloadableList = arrayListOf<Downloadable>()
 
     fun download(downloadable: Downloadable) {
-        val context = Settings.context?.invoke() ?: throw Exception()
+        val context = Settings.context?.invoke() ?: throw Exception("Context not setted")
         val intent = Intent(context, DownloadService::class.java).apply {
             putExtra(DOWNLOADABLE_TAG, downloadable)
         }
@@ -45,13 +46,10 @@ object DownloadServiceFacade {
         }
     }
 
-    fun current(): Download {
-        var result: Download? = null
+    fun current(callback: (List<Download>?) -> Unit) {
         Broadcaster.notify<ActionsListener> {
-            result = this.current()
+            this.current { callback(it) }
         }
-
-        return result!!
     }
 }
 
@@ -61,19 +59,18 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
     private lateinit var fetch: Fetch
 
     override fun downloadNext() {
+        // TODO: Доставать из фасада следующую загрузку по окончании предыдущей
     }
 
     override fun cancel(downloadable: Downloadable) {
-        var download: Download? = null
-        fetch.getDownloads(Func { list -> download = list.asSequence().firstOrNull { it.identifier == downloadable.downloadableUniqueId.toLong() } })
-        val result = download ?: return
-        fetch.cancel(result.id)
+        fetch.getDownloads(Func { list ->
+            val download = list.asSequence().firstOrNull { it.identifier == downloadable.downloadableUniqueId.toLong() }
+            download?.let { fetch.cancel(it.id) }
+        })
     }
 
-    override fun current(): Download? {
-        var result: Download? = null
-        fetch.getDownloadsWithStatus(DOWNLOADING, Func { result = it.first() })
-        return result
+    override fun current(callback: (List<Download>?) -> Unit) {
+        fetch.getDownloadsWithStatus(DOWNLOADING, Func { callback(it) })
     }
 
     private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
@@ -84,20 +81,21 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
             .setSmallIcon(android.R.drawable.stat_notify_sync)
     }
 
-    override fun onCreate() {
-        super.onCreate()
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         fetchConfig = FetchConfiguration.Builder(this)
             .setDownloadConcurrentLimit(Settings.concurrentDownloads)
             .setGlobalNetworkType(Settings.networkType.value)
             .build()
         fetch = Fetch.getInstance(fetchConfig)
+        fetch.addListener(this)
 
         Broadcaster.register(ActionsListener::class, this)
+
+        return Service.START_STICKY
     }
 
     override fun onHandleIntent(intent: Intent) {
-        fetch.addListener(this)
-
+        startForeground(1, notificationBuilder.build())
         val downloadable = intent.getParcelableExtra<Downloadable>(DOWNLOADABLE_TAG)
         val fileName = Uri.parse(downloadable.remoteUrl).lastPathSegment
         val request = Request(downloadable.remoteUrl, "${this.filesDir}/$fileName")
