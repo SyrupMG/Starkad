@@ -20,15 +20,23 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        Settings.context = { applicationContext }
-        val file = File("http://mirror.filearena.net/pub/speed/SpeedTest_256MB.dat")
-        val file1 = File("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat")
+        Settings.context = { this }
+        val file = File("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "/video")
+        val file1 = File("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "/video")
         file.download()
         file1.download()
 
         Timer().schedule(object : TimerTask() {
             override fun run() {
-                DownloadServiceFacade.cancel(file)
+                DownloadServiceFacade.cancel(file1)
+            }
+        }, 5000)
+
+        Timer().schedule(object : TimerTask() {
+            override fun run() {
+                DownloadServiceFacade.current {
+                    it
+                }
             }
         }, 10000)
     }
@@ -36,51 +44,53 @@ class MainActivity : AppCompatActivity() {
 
 class File() : Downloadable, DownloadServiceListener {
 
+    constructor(remoteUrl: String, localUrl: String): this() {
+        this.remoteUrl = remoteUrl
+        this.localUrl = localUrl
+    }
+
+    constructor(parcel: Parcel) : this() {
+        remoteUrl = parcel.readString() as String
+        localUrl = parcel.readString() as String
+        downloadableUniqueId = parcel.readLong()
+    }
+
+    override var remoteUrl: String = ""
+    override var localUrl: String = ""
+
     private val simpleName = this::class.java.simpleName
 
     init {
         Broadcaster.register<DownloadServiceListener>(this)
     }
 
-    override var downloadableUniqueId: Int = Random().nextInt()
-    private set
-    override var remoteUrl: String = ""
-    override var localUrl: String = ""
+    override var downloadableUniqueId: Long = Random().nextLong()
+        private set
 
-    constructor(url: String) : this() {
-        remoteUrl = url
-    }
-
-    constructor(parcel: Parcel) : this() {
-        remoteUrl = parcel.readString()
-        localUrl = parcel.readString()
-        downloadableUniqueId = parcel.readInt()
-    }
-
-    override fun onStart(downloadableID: String) {
+    override fun onStart(downloadableID: Long) {
         Log.d(simpleName, "onStart")
     }
 
-    override fun onProgress(downloadableID: String, progress: Int) {
+    override fun onProgress(downloadableID: Long, progress: Int) {
         Log.d(simpleName, "onProgress $downloadableID $progress")
     }
 
-    override fun onPause(downloadableID: String) {
+    override fun onPause(downloadableID: Long) {
         Log.d(simpleName, "onPause")
     }
 
-    override fun onError(downloadableID: String) {
+    override fun onError(downloadableID: Long) {
         Log.d(simpleName, "onError")
     }
 
-    override fun onFinish(downloadableID: String) {
+    override fun onFinish(downloadableID: Long) {
         Log.d(simpleName, "onFinish")
     }
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         parcel.writeString(remoteUrl)
         parcel.writeString(localUrl)
-        parcel.writeInt(downloadableUniqueId)
+        parcel.writeLong(downloadableUniqueId)
     }
 
     override fun describeContents(): Int {

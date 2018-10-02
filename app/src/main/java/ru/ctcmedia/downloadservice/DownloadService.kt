@@ -3,7 +3,6 @@ package ru.ctcmedia.downloadservice
 import android.app.IntentService
 import android.app.Notification
 import android.app.NotificationManager
-import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -23,15 +22,20 @@ import ru.ctcmedia.downloadservice.interfaces.DownloadServiceListener
 import ru.ctcmedia.downloadservice.interfaces.Downloadable
 import ru.ctcmedia.downloadservice.settings.Settings
 import ru.ctcmedia.notify
+import ru.ctcmedia.register
 
 const val DOWNLOADABLE_TAG = "downloadable_to_service"
 
-object DownloadServiceFacade {
+object DownloadServiceFacade : DownloadServiceListener {
+
+    init {
+        Broadcaster.register<DownloadServiceListener>(this)
+    }
 
     private val downloadableList = arrayListOf<Downloadable>()
 
     fun download(downloadable: Downloadable) {
-        val context = Settings.context?.invoke() ?: throw Exception("Context not setted")
+        val context = Settings.context?.invoke() ?: return
         val intent = Intent(context, DownloadService::class.java).apply {
             putExtra(DOWNLOADABLE_TAG, downloadable)
         }
@@ -41,30 +45,58 @@ object DownloadServiceFacade {
 
     fun cancel(downloadable: Downloadable) {
         Broadcaster.notify<ActionsListener> {
-            this.cancel(downloadable)
+            cancel(downloadable)
             downloadableList.remove(downloadable)
         }
     }
 
     fun current(callback: (List<Download>?) -> Unit) {
-        Broadcaster.notify<ActionsListener> {
-            this.current { callback(it) }
+        Broadcaster.notify<ActionsListener> { current { callback(it) } }
+    }
+
+    fun reinit() = Broadcaster.notify<ActionsListener> { reinit() }
+
+    override fun onStart(downloadableID: Long) {}
+
+    override fun onProgress(downloadableID: Long, progress: Int) {}
+
+    override fun onPause(downloadableID: Long) {}
+
+    override fun onError(downloadableID: Long) {}
+
+    override fun onFinish(downloadableID: Long) {
+        val downloadable = downloadableList.firstOrNull { it.downloadableUniqueId == downloadableID } ?: return
+        downloadableList.remove(downloadable)
+        if (downloadableList.isEmpty()) {
+            val context = Settings.context?.invoke() ?: return
+            context.stopService(Intent(context, DownloadService::class.java))
         }
     }
 }
 
 class DownloadService : IntentService("DownloadService"), FetchListener, ActionsListener {
 
+    private val TAG = DownloadService::class.java.simpleName
+
     private lateinit var fetchConfig: FetchConfiguration
     private lateinit var fetch: Fetch
 
-    override fun downloadNext() {
-        // TODO: Доставать из фасада следующую загрузку по окончании предыдущей
+    override fun reinit() {
+        fetch.getDownloads(Func { list ->
+            fetch.pause(list.map { it.id })
+            fetch.close()
+            fetchConfig = FetchConfiguration.Builder(this)
+                .setDownloadConcurrentLimit(Settings.concurrentDownloads)
+                .setGlobalNetworkType(Settings.networkType.value)
+                .build()
+            fetch = Fetch.getInstance(fetchConfig)
+            fetch.resume(list.map { it.id })
+        })
     }
 
     override fun cancel(downloadable: Downloadable) {
         fetch.getDownloads(Func { list ->
-            val download = list.asSequence().firstOrNull { it.identifier == downloadable.downloadableUniqueId.toLong() }
+            val download = list.asSequence().firstOrNull { it.identifier == downloadable.downloadableUniqueId }
             download?.let { fetch.cancel(it.id) }
         })
     }
@@ -82,6 +114,9 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Broadcaster.register(ActionsListener::class, this)
+        startForeground(1, notificationBuilder.build())
+
         fetchConfig = FetchConfiguration.Builder(this)
             .setDownloadConcurrentLimit(Settings.concurrentDownloads)
             .setGlobalNetworkType(Settings.networkType.value)
@@ -89,93 +124,90 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
         fetch = Fetch.getInstance(fetchConfig)
         fetch.addListener(this)
 
-        Broadcaster.register(ActionsListener::class, this)
-
-        return Service.START_STICKY
+        return START_STICKY
     }
 
     override fun onHandleIntent(intent: Intent) {
-        startForeground(1, notificationBuilder.build())
         val downloadable = intent.getParcelableExtra<Downloadable>(DOWNLOADABLE_TAG)
         val fileName = Uri.parse(downloadable.remoteUrl).lastPathSegment
-        val request = Request(downloadable.remoteUrl, "${this.filesDir}/$fileName")
-        request.identifier = downloadable.downloadableUniqueId.toLong()
+        val request = Request(downloadable.remoteUrl, "${this.filesDir}${downloadable.localUrl}/$fileName")
+        request.identifier = downloadable.downloadableUniqueId
         fetch.enqueue(request, null, null)
     }
 
     override fun onAdded(download: Download) {
-        Log.d(DownloadService::class.java.simpleName, "OnAdded")
+        Log.d(TAG, "OnAdded")
     }
 
     override fun onCancelled(download: Download) {
-        Log.d(DownloadService::class.java.simpleName, "OnCancelled")
+        Log.d(TAG, "OnCancelled")
     }
 
     override fun onCompleted(download: Download) {
         val notification = notificationBuilder
             .setContentTitle("Файл скачан")
-            .setOngoing(true)
+            .setOngoing(false)
             .build()
-        notificationManager.notify(download.id, notification)
-        Broadcaster.notify<DownloadServiceListener> { onFinish(download.id.toString()) }
+        notificationManager.notify(1, notification)
+        Broadcaster.notify<DownloadServiceListener> { onFinish(download.identifier) }
     }
 
     override fun onDeleted(download: Download) {
-        Log.d(DownloadService::class.java.simpleName, "OnDeleted")
+        Log.d(TAG, "OnDeleted")
     }
 
     override fun onDownloadBlockUpdated(download: Download, downloadBlock: DownloadBlock, totalBlocks: Int) {
-        Log.d(DownloadService::class.java.simpleName, "OnDownloadBlockUpdated")
+        Log.d(TAG, "OnDownloadBlockUpdated")
     }
 
     override fun onError(download: Download, error: Error, throwable: Throwable?) {
         val notification = notificationBuilder
             .setContentTitle("Ошибка!")
-            .setOngoing(true)
+            .setOngoing(false)
             .build()
-        notificationManager.notify(download.id, notification)
-        Broadcaster.notify<DownloadServiceListener> { onError(download.id.toString()) }
+        notificationManager.notify(1, notification)
+        Broadcaster.notify<DownloadServiceListener> { onError(download.identifier) }
     }
 
     override fun onPaused(download: Download) {
-        Log.d(DownloadService::class.java.simpleName, "OnPaused")
-        Broadcaster.notify<DownloadServiceListener> { onPause(download.id.toString()) }
+        Log.d(TAG, "OnPaused")
+        Broadcaster.notify<DownloadServiceListener> { onPause(download.identifier) }
     }
 
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
-        notificationBuilder.setProgress(100, download.progress, false)
-        notificationBuilder.setOngoing(false)
         notificationManager.notify(
-            download.id, notificationBuilder
+            1, notificationBuilder
+                .setProgress(100, download.progress, false)
                 .setContentText("${download.progress} из 100")
+                .setOngoing(true)
                 .build()
         )
-        Broadcaster.notify<DownloadServiceListener> { onProgress(download.id.toString(), download.progress) }
+        Broadcaster.notify<DownloadServiceListener> { onProgress(download.identifier, download.progress) }
     }
 
     override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
-        Log.d(DownloadService::class.java.simpleName, "OnQueued")
+        Log.d(TAG, "OnQueued")
     }
 
     override fun onRemoved(download: Download) {
-        Log.d(DownloadService::class.java.simpleName, "OnRemoved")
+        Log.d(TAG, "OnRemoved")
     }
 
     override fun onResumed(download: Download) {
-        Log.d(DownloadService::class.java.simpleName, "OnResumed")
+        Log.d(TAG, "OnResumed")
     }
 
     override fun onStarted(download: Download, downloadBlocks: List<DownloadBlock>, totalBlocks: Int) {
-        Broadcaster.notify<DownloadServiceListener> { onStart(download.id.toString()) }
+        Broadcaster.notify<DownloadServiceListener> { onStart(download.identifier) }
     }
 
     override fun onWaitingNetwork(download: Download) {
-        Log.d(DownloadService::class.java.simpleName, "OnWaitingNetwork")
+        Log.d(TAG, "OnWaitingNetwork")
     }
 
-//    override fun onDestroy() {
-//        super.onDestroy()
-//        Log.d(DownloadService::class.java.simpleName, "OnDestroy")
-//        notificationManager.cancelAll()
-//    }
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d(TAG, "OnDestroy")
+        notificationManager.cancelAll()
+    }
 }

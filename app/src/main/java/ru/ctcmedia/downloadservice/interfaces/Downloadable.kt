@@ -4,7 +4,7 @@ import android.os.Parcelable
 import ru.ctcmedia.downloadservice.DownloadServiceFacade
 
 interface Downloadable : Parcelable {
-    val downloadableUniqueId: Int
+    val downloadableUniqueId: Long
     val remoteUrl: String
     val localUrl: String
     fun download() {

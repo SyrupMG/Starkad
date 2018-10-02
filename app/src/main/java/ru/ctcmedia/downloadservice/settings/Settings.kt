@@ -3,11 +3,11 @@ package ru.ctcmedia.downloadservice.settings
 import android.content.Context
 import com.tonyodev.fetch2.NetworkType.ALL
 import com.tonyodev.fetch2.NetworkType.WIFI_ONLY
-import ru.ctcmedia.downloadservice.settings.NetworkType.Cellular
+import ru.ctcmedia.downloadservice.settings.NetworkType.Wifi
 
 object Settings {
-    val concurrentDownloads: Int = 1
-    val networkType: NetworkType = Cellular
+    var concurrentDownloads: Int = 1
+    var networkType: NetworkType = Wifi
     var context: (() -> Context)? = null
 }
 

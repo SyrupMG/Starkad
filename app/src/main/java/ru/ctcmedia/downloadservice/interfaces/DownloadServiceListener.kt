@@ -1,9 +1,9 @@
 package ru.ctcmedia.downloadservice.interfaces
 
 interface DownloadServiceListener {
-    fun onStart(downloadableID: String)
-    fun onProgress(downloadableID: String, progress: Int)
-    fun onPause(downloadableID: String)
-    fun onError(downloadableID: String)
-    fun onFinish(downloadableID: String)
+    fun onStart(downloadableID: Long)
+    fun onProgress(downloadableID: Long, progress: Int)
+    fun onPause(downloadableID: Long)
+    fun onError(downloadableID: Long)
+    fun onFinish(downloadableID: Long)
 }
