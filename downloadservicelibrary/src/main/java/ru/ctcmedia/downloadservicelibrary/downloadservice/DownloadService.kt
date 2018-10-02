@@ -74,7 +74,7 @@ object DownloadServiceFacade : DownloadServiceListener {
     }
 }
 
-class DownloadService : IntentService("DownloadService"), FetchListener, ActionsListener {
+class DownloadService private constructor() : IntentService("DownloadService"), FetchListener, ActionsListener {
 
     private val TAG = DownloadService::class.java.simpleName
 
@@ -83,14 +83,15 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
 
     override fun reinit() {
         fetch.getDownloads(Func { list ->
-            fetch.pause(list.map { it.id })
+            val idList = list.map { it.id }
+            fetch.pause(idList)
             fetch.close()
             fetchConfig = FetchConfiguration.Builder(this)
                 .setDownloadConcurrentLimit(Settings.concurrentDownloads)
                 .setGlobalNetworkType(Settings.networkType.value)
                 .build()
             fetch = Fetch.getInstance(fetchConfig)
-            fetch.resume(list.map { it.id })
+            fetch.resume(idList)
         })
     }
 
@@ -114,6 +115,7 @@ class DownloadService : IntentService("DownloadService"), FetchListener, Actions
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
         Broadcaster.register(ActionsListener::class, this)
         startForeground(1, notificationBuilder.build())
 
