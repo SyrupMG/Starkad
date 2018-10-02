@@ -76,7 +76,9 @@ object DownloadServiceFacade : DownloadServiceListener {
 
 class DownloadService private constructor() : IntentService("DownloadService"), FetchListener, ActionsListener {
 
-    private val TAG = DownloadService::class.java.simpleName
+    companion object {
+        private val TAG = DownloadService::class.java.simpleName
+    }
 
     private lateinit var fetchConfig: FetchConfiguration
     private lateinit var fetch: Fetch
@@ -116,7 +118,7 @@ class DownloadService private constructor() : IntentService("DownloadService"), 
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-        Broadcaster.register(ActionsListener::class, this)
+        Broadcaster.register<ActionsListener>(this)
         startForeground(1, notificationBuilder.build())
 
         fetchConfig = FetchConfiguration.Builder(this)
