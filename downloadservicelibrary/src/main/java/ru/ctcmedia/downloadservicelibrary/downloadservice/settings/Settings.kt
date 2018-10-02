@@ -1,9 +1,9 @@
-package ru.ctcmedia.downloadservice.settings
+package ru.ctcmedia.downloadservicelibrary.downloadservice.settings
 
 import android.content.Context
 import com.tonyodev.fetch2.NetworkType.ALL
 import com.tonyodev.fetch2.NetworkType.WIFI_ONLY
-import ru.ctcmedia.downloadservice.settings.NetworkType.Wifi
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Wifi
 
 object Settings {
     var concurrentDownloads: Int = 1

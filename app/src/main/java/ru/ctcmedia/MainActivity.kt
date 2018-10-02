@@ -5,11 +5,13 @@ import android.os.Parcel
 import android.os.Parcelable.Creator
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
-import ru.ctcmedia.downloadservice.DownloadServiceFacade
 import ru.ctcmedia.downloadservice.R
-import ru.ctcmedia.downloadservice.interfaces.DownloadServiceListener
-import ru.ctcmedia.downloadservice.interfaces.Downloadable
-import ru.ctcmedia.downloadservice.settings.Settings
+import ru.ctcmedia.downloadservicelibrary.Broadcaster
+import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadServiceFacade
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadServiceListener
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
+import ru.ctcmedia.downloadservicelibrary.register
 import java.util.Random
 import java.util.Timer
 import java.util.TimerTask
@@ -44,7 +46,7 @@ class MainActivity : AppCompatActivity() {
 
 class File() : Downloadable, DownloadServiceListener {
 
-    constructor(remoteUrl: String, localUrl: String): this() {
+    constructor(remoteUrl: String, localUrl: String) : this() {
         this.remoteUrl = remoteUrl
         this.localUrl = localUrl
     }

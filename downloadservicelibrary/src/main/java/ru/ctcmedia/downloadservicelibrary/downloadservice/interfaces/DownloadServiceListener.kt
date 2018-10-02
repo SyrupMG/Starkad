@@ -1,4 +1,4 @@
-package ru.ctcmedia.downloadservice.interfaces
+package ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces
 
 interface DownloadServiceListener {
     fun onStart(downloadableID: Long)

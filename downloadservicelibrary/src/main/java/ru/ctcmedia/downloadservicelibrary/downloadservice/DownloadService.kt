@@ -1,4 +1,4 @@
-package ru.ctcmedia.downloadservice
+package ru.ctcmedia.downloadservicelibrary.downloadservice
 
 import android.app.IntentService
 import android.app.Notification
@@ -17,12 +17,12 @@ import com.tonyodev.fetch2.Request
 import com.tonyodev.fetch2.Status.DOWNLOADING
 import com.tonyodev.fetch2core.DownloadBlock
 import com.tonyodev.fetch2core.Func
-import ru.ctcmedia.Broadcaster
-import ru.ctcmedia.downloadservice.interfaces.DownloadServiceListener
-import ru.ctcmedia.downloadservice.interfaces.Downloadable
-import ru.ctcmedia.downloadservice.settings.Settings
-import ru.ctcmedia.notify
-import ru.ctcmedia.register
+import ru.ctcmedia.downloadservicelibrary.Broadcaster
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadServiceListener
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
+import ru.ctcmedia.downloadservicelibrary.notify
+import ru.ctcmedia.downloadservicelibrary.register
 
 const val DOWNLOADABLE_TAG = "downloadable_to_service"
 

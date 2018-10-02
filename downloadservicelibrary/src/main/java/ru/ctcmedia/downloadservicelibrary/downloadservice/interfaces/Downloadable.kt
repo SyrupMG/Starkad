@@ -1,7 +1,7 @@
-package ru.ctcmedia.downloadservice.interfaces
+package ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces
 
 import android.os.Parcelable
-import ru.ctcmedia.downloadservice.DownloadServiceFacade
+import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadServiceFacade
 
 interface Downloadable : Parcelable {
     val downloadableUniqueId: Long

@@ -1,4 +1,4 @@
-package ru.ctcmedia
+package ru.ctcmedia.downloadservicelibrary
 
 import java.lang.ref.WeakReference
 import kotlin.reflect.KClass
