@@ -1,17 +1,26 @@
 package ru.ctcmedia.downloadservicelibrary.downloadservice.settings
 
-import android.content.Context
 import com.tonyodev.fetch2.NetworkType.ALL
 import com.tonyodev.fetch2.NetworkType.WIFI_ONLY
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Cellular
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Wifi
 
-object Settings {
-    var concurrentDownloads: Int = 1
-    var networkType: NetworkType = Wifi
-    var context: (() -> Context)? = null
+data class Settings(
+    val concurrentDownloads: Int = 1,
+    val networkType: NetworkType = Cellular
+)
+
+enum class NetworkType {
+    Wifi,
+    Cellular;
+
+    fun fetchNetworkType() = when (this) {
+        Wifi -> WIFI_ONLY
+        else -> ALL
+    }
 }
 
-sealed class NetworkType(val value: com.tonyodev.fetch2.NetworkType) {
-    object Wifi : NetworkType(WIFI_ONLY)
-    object Cellular : NetworkType(ALL)
+fun com.tonyodev.fetch2.NetworkType.settingsNetworkType() = when (this) {
+    WIFI_ONLY -> Wifi
+    else -> Cellular
 }

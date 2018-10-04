@@ -1,110 +1,101 @@
 package ru.ctcmedia
 
+import android.net.Uri
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable.Creator
 import android.support.v7.app.AppCompatActivity
-import android.util.Log
 import ru.ctcmedia.downloadservice.R
-import ru.ctcmedia.downloadservicelibrary.Broadcaster
 import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadServiceFacade
-import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadServiceListener
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
-import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
-import ru.ctcmedia.downloadservicelibrary.register
-import java.util.Random
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.cancelDownload
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.forget
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.observe
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.resumeDownload
 import java.util.Timer
 import java.util.TimerTask
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), DownloadStatusListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        DownloadServiceFacade.apply { bindContext() }
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        Settings.context = { this }
-        val file = File("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "/video")
-        val file1 = File("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "/video")
-        file.download()
-        file1.download()
+        val file = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "${filesDir.path}/video/16mb.mp4")
+        val bigFile = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "${filesDir.path}/video/128mb.mp4")
+        file.apply {
+            resumeDownload()
+            observe(this@MainActivity)
+        }
+        bigFile.resumeDownload()
 
         Timer().schedule(object : TimerTask() {
             override fun run() {
-                DownloadServiceFacade.cancel(file1)
+                bigFile.cancelDownload()
             }
-        }, 5000)
+        }, 20000)
 
         Timer().schedule(object : TimerTask() {
             override fun run() {
-                DownloadServiceFacade.current {
-                    it
-                }
+                file.forget(this@MainActivity)
             }
         }, 10000)
     }
+
+    // DownloadStatusListener
+
+    override fun downloadStart() {
+    }
+
+    override fun downloadOnProgress(progress: Int) {
+    }
+
+    override fun downloadFinish() {
+    }
+
+    override fun downloadError() {
+    }
+
+    // ---- DownloadStatusListener
 }
 
-class File() : Downloadable, DownloadServiceListener {
+class DownloadableFile : Downloadable {
 
-    constructor(remoteUrl: String, localUrl: String) : this() {
-        this.remoteUrl = remoteUrl
-        this.localUrl = localUrl
+    constructor(remoteUrl: String, localUrl: String) {
+        this.remoteUrl = Uri.parse(remoteUrl)
+        this.localUrl = Uri.parse(localUrl)
     }
 
-    constructor(parcel: Parcel) : this() {
-        remoteUrl = parcel.readString() as String
-        localUrl = parcel.readString() as String
-        downloadableUniqueId = parcel.readLong()
+    constructor(parcel: Parcel) {
+        remoteUrl = Uri.parse(parcel.readString())
+        localUrl = Uri.parse(parcel.readString())
     }
 
-    override var remoteUrl: String = ""
-    override var localUrl: String = ""
+    override val downloadableUniqueId: String
+        get() = "$remoteUrl||$localUrl".hashCode().toString()
 
-    private val simpleName = this::class.java.simpleName
-
-    init {
-        Broadcaster.register<DownloadServiceListener>(this)
-    }
-
-    override var downloadableUniqueId: Long = Random().nextLong()
-        private set
-
-    override fun onStart(downloadableID: Long) {
-        Log.d(simpleName, "onStart")
-    }
-
-    override fun onProgress(downloadableID: Long, progress: Int) {
-        Log.d(simpleName, "onProgress $downloadableID $progress")
-    }
-
-    override fun onPause(downloadableID: Long) {
-        Log.d(simpleName, "onPause")
-    }
-
-    override fun onError(downloadableID: Long) {
-        Log.d(simpleName, "onError")
-    }
-
-    override fun onFinish(downloadableID: Long) {
-        Log.d(simpleName, "onFinish")
-    }
+    override val remoteUrl: Uri
+    override val localUrl: Uri
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
-        parcel.writeString(remoteUrl)
-        parcel.writeString(localUrl)
-        parcel.writeLong(downloadableUniqueId)
+        parcel.writeString(remoteUrl.path)
+        parcel.writeString(localUrl.path)
     }
 
     override fun describeContents(): Int {
         return 0
     }
 
-    companion object CREATOR : Creator<File> {
-        override fun createFromParcel(parcel: Parcel): File {
-            return File(parcel)
+    companion object CREATOR : Creator<DownloadableFile> {
+        override fun createFromParcel(parcel: Parcel): DownloadableFile {
+            return DownloadableFile(parcel)
         }
 
-        override fun newArray(size: Int): Array<File?> {
+        override fun newArray(size: Int): Array<DownloadableFile?> {
             return arrayOfNulls(size)
         }
     }
