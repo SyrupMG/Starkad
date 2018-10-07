@@ -3,8 +3,10 @@ package ru.ctcmedia.downloadservicelibrary.downloadservice
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Binder
 import android.os.IBinder
 import android.support.v4.content.ContextCompat
@@ -16,6 +18,7 @@ import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.FetchListener
 import com.tonyodev.fetch2.Request
 import com.tonyodev.fetch2.Status.DOWNLOADING
+import com.tonyodev.fetch2.Status.QUEUED
 import com.tonyodev.fetch2core.DownloadBlock
 import com.tonyodev.fetch2core.Func
 import ru.ctcmedia.downloadservicelibrary.Broadcaster
@@ -36,6 +39,8 @@ private interface DownloadServiceListener {
 
 object DownloadServiceFacade : DownloadServiceListener {
 
+    private val TAG = this::class.java.simpleName
+
     private val downloadableListeners = mutableMapOf<String, ArrayList<DownloadStatusListener>>()
 
     var configuration: Settings
@@ -52,14 +57,32 @@ object DownloadServiceFacade : DownloadServiceListener {
         Broadcaster.register<DownloadServiceListener>(this)
     }
 
-    fun Context.bindContext() {
+    private lateinit var service: DownloadService
+    private lateinit var serviceConnection: ServiceConnection
+
+    fun Context.bindContext(callback: () -> Unit) {
+        serviceConnection = object : ServiceConnection {
+            override fun onServiceConnected(p0: ComponentName?, p1: IBinder?) {
+                service = (p1 as DownloadService.DownloadBinder).service
+                Log.d(TAG, "serviceConnected")
+                service.setSettings(configuration)
+                callback()
+            }
+
+            override fun onServiceDisconnected(p0: ComponentName?) {}
+        }
         val intent = Intent(this, DownloadService::class.java)
         ContextCompat.startForegroundService(this, intent)
-        Broadcaster.notify<ActionsListener> { setSettings(configuration) }
+        bindService(intent, serviceConnection, 0)
+    }
+
+    fun Context.unbindContext() {
+        unbindService(serviceConnection)
+        stopService(Intent(this, DownloadService::class.java))
     }
 
     internal fun download(downloadable: Downloadable) {
-        Broadcaster.notify<ActionsListener> { resume(downloadable) }
+        service.resume(downloadable)
     }
 
     internal fun cancel(downloadable: Downloadable) {
@@ -114,14 +137,21 @@ class DownloadService : Service(), FetchListener, ActionsListener {
 
     override fun resume(downloadable: Downloadable) {
         val request = Request(downloadable.remoteUrl.toString(), downloadable.localUrl.downloadable().toString())
-        map[request.id] = downloadable.downloadableUniqueId
+        map[request.id] = downloadable.mixedUniqueId
         fetch.enqueue(request, null, null)
     }
 
     private val TAG = DownloadService::class.java.simpleName
     private var config: Settings
-        get() = Settings(fetchConfig.concurrentLimit, fetchConfig.globalNetworkType.settingsNetworkType())
+        get() {
+            return if (::fetchConfig.isInitialized) {
+                Settings(fetchConfig.concurrentLimit, fetchConfig.globalNetworkType.settingsNetworkType())
+            } else {
+                Settings()
+            }
+        }
         set(value) {
+            Log.d(TAG, "Config setter")
             fetchConfig = FetchConfiguration.Builder(this)
                 .setDownloadConcurrentLimit(value.concurrentDownloads)
                 .setGlobalNetworkType(value.networkType.fetchNetworkType())
@@ -136,32 +166,26 @@ class DownloadService : Service(), FetchListener, ActionsListener {
         Broadcaster.register<ActionsListener>(this)
     }
 
-    override fun onBind(intent: Intent?): IBinder? = DownloadBinder()
+    override fun onBind(intent: Intent?): IBinder? {
+        Log.d(TAG, "OnBind")
+        return DownloadBinder()
+    }
 
     override fun setSettings(settings: Settings) {
+        Log.d(TAG, "setSettings")
         if (::fetchConfig.isInitialized) {
             fetch.close()
         }
 
         config = settings
         fetch.addListener(this)
-//
-//        fetch.getDownloads(Func { list ->
-//            val idList = list.map { it.id }
-//            fetch.pause(idList)
-//            fetch.close()
-//
-//            config = settings
-//
-//            fetch.resume(idList)
-//        })
     }
 
     override fun getSettings() = config
 
     override fun cancel(downloadable: Downloadable) {
         fetch.getDownloads(Func { list ->
-            val downloadableKey = map.filter { it.value == downloadable.mixedUniqueId }.keys.first()
+            val downloadableKey = map.filter { it.value == downloadable.mixedUniqueId }.keys.firstOrNull()
             val download = list.asSequence().firstOrNull { map[downloadableKey] == downloadable.downloadableUniqueId }
             download?.let {
                 fetch.cancel(it.id)
@@ -202,6 +226,9 @@ class DownloadService : Service(), FetchListener, ActionsListener {
             .build()
         notificationManager.notify(download.id, notification)
         Broadcaster.notify<DownloadServiceListener> { onFinish(currentDownloadable) }
+        (fetch.getDownloadsWithStatus(QUEUED, Func {
+            if (it.isEmpty()) stopSelf()
+        }))
     }
 
     override fun onDeleted(download: Download) {
@@ -268,7 +295,6 @@ class DownloadService : Service(), FetchListener, ActionsListener {
         super.onDestroy()
         Log.d(TAG, "OnDestroy")
         stopForeground(true)
-        notificationManager.cancelAll()
     }
 
     inner class DownloadBinder : Binder() {
