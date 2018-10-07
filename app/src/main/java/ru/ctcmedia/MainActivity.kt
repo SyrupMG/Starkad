@@ -42,9 +42,13 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
                     .setSmallIcon(android.R.drawable.ic_popup_sync)
                     .setOngoing(false)
 
-            downloadingNotificationBuilder = Notification.Builder(this@MainActivity)
-                    .setOngoing(true)
-                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+            downloadingNotificationBuilder = {
+                Notification.Builder(this@MainActivity)
+                        .setOngoing(true)
+                        .setProgress(100, it.progress, false)
+                        .setContentText("${it.progress} из 100")
+                        .setSmallIcon(android.R.drawable.ic_popup_sync)
+            }
 
             bindContext {
             val file = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "${filesDir.path}/video/16mb.mp4")

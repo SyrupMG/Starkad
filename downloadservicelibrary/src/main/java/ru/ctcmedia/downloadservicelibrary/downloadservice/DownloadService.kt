@@ -44,7 +44,7 @@ object DownloadServiceFacade : DownloadServiceListener {
     private val downloadableListeners = mutableMapOf<String, ArrayList<DownloadStatusListener>>()
 
     lateinit var foregroundNotification: Notification.Builder
-    lateinit var downloadingNotificationBuilder: Notification.Builder
+    lateinit var downloadingNotificationBuilder: (Download) -> Notification.Builder
     lateinit var downloadingErrorNotification: Notification.Builder
     lateinit var downloadingCompleteNotification: Notification.Builder
 
@@ -251,11 +251,7 @@ class DownloadService : Service(), FetchListener, ActionsListener {
 
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
         val currentDownloadable = map[download.id] ?: return
-        notificationManager.notify(
-            download.id, DownloadServiceFacade
-                .downloadingNotificationBuilder
-                .setProgress(100, download.progress, false)
-                .setContentText("${download.progress} из 100").build())
+        notificationManager.notify(download.id, DownloadServiceFacade.downloadingNotificationBuilder(download).build())
 
         Broadcaster.notify<DownloadServiceListener> { onProgress(currentDownloadable, download.progress) }
     }
