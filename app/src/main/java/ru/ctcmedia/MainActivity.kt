@@ -1,5 +1,6 @@
 package ru.ctcmedia
 
+import android.app.Notification
 import android.net.Uri
 import android.os.Bundle
 import android.os.Parcel
@@ -26,6 +27,25 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
 
         DownloadServiceFacade.apply {
             configuration = Settings(2, NetworkType.Wifi)
+
+            foregroundNotification = Notification.Builder(this@MainActivity)
+                    .setContentTitle("Скачивается...")
+                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+
+            downloadingCompleteNotification = Notification.Builder(this@MainActivity)
+                    .setContentTitle("Файл скачан")
+                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+                    .setOngoing(false)
+
+            downloadingErrorNotification = Notification.Builder(this@MainActivity)
+                    .setContentTitle("Ошибка!")
+                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+                    .setOngoing(false)
+
+            downloadingNotificationBuilder = Notification.Builder(this@MainActivity)
+                    .setOngoing(true)
+                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+
             bindContext {
             val file = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "${filesDir.path}/video/16mb.mp4")
             val bigFile = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "${filesDir.path}/video/128mb.mp4")
@@ -47,11 +67,6 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
                 }
             }, 10000)
         } }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        DownloadServiceFacade.apply { unbindContext() }
     }
 
     // DownloadStatusListener
