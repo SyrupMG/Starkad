@@ -7,11 +7,16 @@ import android.os.Parcel
 import android.os.Parcelable.Creator
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
+import kotlinx.coroutines.experimental.CoroutineScope
+import kotlinx.coroutines.experimental.GlobalScope
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.launch
 import ru.ctcmedia.downloadservice.R
 import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadServiceFacade
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.cancelDownload
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.forget
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.observe
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.resumeDownload
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType
@@ -53,23 +58,20 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
             bindContext {
             val file = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "${filesDir.path}/video/16mb.mp4")
             val bigFile = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "${filesDir.path}/video/128mb.mp4")
+
             file.apply {
                 resumeDownload()
                 observe(this@MainActivity)
             }
+
             bigFile.resumeDownload()
 
-            Timer().schedule(object : TimerTask() {
-                override fun run() {
-                    bigFile.cancelDownload()
-                }
-            }, 20000)
-
-            Timer().schedule(object : TimerTask() {
-                override fun run() {
-//                    file.forget(this@MainActivity)
-                }
-            }, 10000)
+            GlobalScope.launch {
+                delay(10000)
+                file.forget(this@MainActivity)
+                delay(10000)
+                file.cancelDownload()
+            }
         } }
     }
 
@@ -90,6 +92,7 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
     }
 
     override fun downloadError() {
+        Log.d(TAG, "DownloadError")
     }
 
     // ---- DownloadStatusListener
