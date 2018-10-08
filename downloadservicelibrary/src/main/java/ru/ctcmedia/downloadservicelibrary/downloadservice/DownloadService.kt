@@ -65,15 +65,15 @@ object DownloadServiceFacade : DownloadServiceListener {
 
     fun Context.bindContext(callback: () -> Unit) {
         serviceConnection = object : ServiceConnection {
-            override fun onServiceConnected(p0: ComponentName?, p1: IBinder?) {
-                service = (p1 as DownloadService.DownloadBinder).service
-                Log.d(TAG, "serviceConnected")
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                service = (binder as DownloadService.DownloadBinder).service
                 service.setSettings(configuration)
                 callback()
             }
 
             override fun onServiceDisconnected(p0: ComponentName?) {}
         }
+
         val intent = Intent(this, DownloadService::class.java)
         ContextCompat.startForegroundService(this, intent)
         bindService(intent, serviceConnection, 0)
@@ -129,7 +129,6 @@ object DownloadServiceFacade : DownloadServiceListener {
     fun unregister(listener: DownloadStatusListener, `for`: Downloadable) {
         val id = `for`.mixedUniqueId
         downloadableListeners[id]?.remove(listener)
-        // remove if empty
     }
 }
 
@@ -145,6 +144,7 @@ class DownloadService : Service(), FetchListener, ActionsListener {
     }
 
     private val TAG = DownloadService::class.java.simpleName
+
     private var config: Settings
         get() {
             return if (::fetchConfig.isInitialized) {
@@ -247,10 +247,11 @@ class DownloadService : Service(), FetchListener, ActionsListener {
     override fun onPaused(download: Download) {
     }
 
+    private val downloadableNotificationBuilder by lazy { Notification.Builder(this) }
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
         val currentDownloadable = map[download.id] ?: return
-        notificationManager.notify(download.id, DownloadServiceFacade.notificationSettings.downloadingNotificationBuilder(download).build())
 
+        notificationManager.notify(download.id, DownloadServiceFacade.notificationSettings.downloadingNotificationBuilder(downloadableNotificationBuilder, download.progress))
         Broadcaster.notify<DownloadServiceListener> { onProgress(currentDownloadable, download.progress) }
     }
 

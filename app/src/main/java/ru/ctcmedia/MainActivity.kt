@@ -34,12 +34,12 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
                 Notification.Builder(this@MainActivity)
                     .setContentTitle("Скачивается...")
                     .setSmallIcon(android.R.drawable.ic_popup_sync),
-                {
-                    Notification.Builder(this@MainActivity)
+                { builder, progress ->
+                    builder
                         .setOngoing(true)
-                        .setProgress(100, it.progress, false)
-                        .setContentText("${it.progress} из 100")
-                        .setSmallIcon(android.R.drawable.ic_popup_sync)
+                        .setProgress(100, progress, false)
+                        .setContentText("$progress из 100")
+                        .setSmallIcon(android.R.drawable.ic_popup_sync).build()
                 },
                 Notification.Builder(this@MainActivity)
                     .setContentTitle("Ошибка!")
