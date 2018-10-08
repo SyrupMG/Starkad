@@ -7,7 +7,6 @@ import android.os.Parcel
 import android.os.Parcelable.Creator
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
-import kotlinx.coroutines.experimental.CoroutineScope
 import kotlinx.coroutines.experimental.GlobalScope
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
@@ -20,9 +19,8 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.forget
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.observe
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.resumeDownload
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NotificationSettings
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
-import java.util.Timer
-import java.util.TimerTask
 
 class MainActivity : AppCompatActivity(), DownloadStatusListener {
 
@@ -32,47 +30,46 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
 
         DownloadServiceFacade.apply {
             configuration = Settings(2, NetworkType.Wifi)
-
-            foregroundNotification = Notification.Builder(this@MainActivity)
-                    .setContentTitle("Скачивается...")
-                    .setSmallIcon(android.R.drawable.ic_popup_sync)
-
-            downloadingCompleteNotification = Notification.Builder(this@MainActivity)
-                    .setContentTitle("Файл скачан")
-                    .setSmallIcon(android.R.drawable.ic_popup_sync)
-                    .setOngoing(false)
-
-            downloadingErrorNotification = Notification.Builder(this@MainActivity)
-                    .setContentTitle("Ошибка!")
-                    .setSmallIcon(android.R.drawable.ic_popup_sync)
-                    .setOngoing(false)
-
-            downloadingNotificationBuilder = {
+            notificationSettings = NotificationSettings(
                 Notification.Builder(this@MainActivity)
+                    .setContentTitle("Скачивается...")
+                    .setSmallIcon(android.R.drawable.ic_popup_sync),
+                {
+                    Notification.Builder(this@MainActivity)
                         .setOngoing(true)
                         .setProgress(100, it.progress, false)
                         .setContentText("${it.progress} из 100")
                         .setSmallIcon(android.R.drawable.ic_popup_sync)
-            }
+                },
+                Notification.Builder(this@MainActivity)
+                    .setContentTitle("Ошибка!")
+                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+                    .setOngoing(false),
+                Notification.Builder(this@MainActivity)
+                    .setContentTitle("Файл скачан")
+                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+                    .setOngoing(false)
+            )
 
             bindContext {
-            val file = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "${filesDir.path}/video/16mb.mp4")
-            val bigFile = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "${filesDir.path}/video/128mb.mp4")
+                val file = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "${filesDir.path}/video/16mb.mp4")
+                val bigFile = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "${filesDir.path}/video/128mb.mp4")
 
-            file.apply {
-                resumeDownload()
-                observe(this@MainActivity)
+                file.apply {
+                    resumeDownload()
+                    observe(this@MainActivity)
+                }
+
+                bigFile.resumeDownload()
+
+                GlobalScope.launch {
+                    delay(10000)
+                    file.forget(this@MainActivity)
+                    delay(10000)
+                    file.cancelDownload()
+                }
             }
-
-            bigFile.resumeDownload()
-
-            GlobalScope.launch {
-                delay(10000)
-                file.forget(this@MainActivity)
-                delay(10000)
-                file.cancelDownload()
-            }
-        } }
+        }
     }
 
     // DownloadStatusListener

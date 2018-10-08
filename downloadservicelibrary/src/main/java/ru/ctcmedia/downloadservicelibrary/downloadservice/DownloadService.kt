@@ -25,6 +25,7 @@ import ru.ctcmedia.downloadservicelibrary.Broadcaster
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.downloadable
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NotificationSettings
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.settingsNetworkType
 import ru.ctcmedia.downloadservicelibrary.notify
@@ -43,10 +44,7 @@ object DownloadServiceFacade : DownloadServiceListener {
 
     private val downloadableListeners = mutableMapOf<String, ArrayList<DownloadStatusListener>>()
 
-    lateinit var foregroundNotification: Notification.Builder
-    lateinit var downloadingNotificationBuilder: (Download) -> Notification.Builder
-    lateinit var downloadingErrorNotification: Notification.Builder
-    lateinit var downloadingCompleteNotification: Notification.Builder
+    lateinit var notificationSettings: NotificationSettings
 
     var configuration: Settings
         get() {
@@ -219,7 +217,7 @@ class DownloadService : Service(), FetchListener, ActionsListener {
 
     override fun onCompleted(download: Download) {
         val currentDownloadable = map[download.id] ?: return
-        val notification = DownloadServiceFacade.downloadingCompleteNotification
+        val notification = DownloadServiceFacade.notificationSettings.downloadingCompleteNotification
         notificationManager.notify(download.id, notification.build())
         Broadcaster.notify<DownloadServiceListener> { onFinish(currentDownloadable) }
         (fetch.getDownloadsWithStatus(QUEUED, Func {
@@ -237,12 +235,12 @@ class DownloadService : Service(), FetchListener, ActionsListener {
 
     override fun onError(download: Download, error: Error, throwable: Throwable?) {
         val currentDownloadable = map[download.id] ?: return
-        notificationManager.notify(download.id, DownloadServiceFacade.downloadingErrorNotification.build())
+        notificationManager.notify(download.id, DownloadServiceFacade.notificationSettings.downloadingErrorNotification.build())
         Broadcaster.notify<DownloadServiceListener> { onError(currentDownloadable) }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(foregroundNotificationId, DownloadServiceFacade.foregroundNotification.build())
+        startForeground(foregroundNotificationId, DownloadServiceFacade.notificationSettings.foregroundNotification.build())
         return START_STICKY
     }
 
@@ -251,7 +249,7 @@ class DownloadService : Service(), FetchListener, ActionsListener {
 
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
         val currentDownloadable = map[download.id] ?: return
-        notificationManager.notify(download.id, DownloadServiceFacade.downloadingNotificationBuilder(download).build())
+        notificationManager.notify(download.id, DownloadServiceFacade.notificationSettings.downloadingNotificationBuilder(download).build())
 
         Broadcaster.notify<DownloadServiceListener> { onProgress(currentDownloadable, download.progress) }
     }
