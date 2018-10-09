@@ -68,7 +68,6 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
                     file.forget(this@MainActivity)
                     delay(10000)
                     configuration = Settings(2, Wifi)
-                    file.cancelDownload()
                 }
             }
         }

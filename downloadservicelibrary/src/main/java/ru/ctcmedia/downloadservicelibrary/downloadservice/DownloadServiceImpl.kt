@@ -3,7 +3,6 @@ package ru.ctcmedia.downloadservicelibrary.downloadservice
 import android.app.IntentService
 import android.app.Notification
 import android.app.NotificationManager
-import android.app.Service
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -116,7 +115,6 @@ object DownloadService : android.os.Binder() {
         val id = `for`.mixedUniqueId
         downloadableListeners[id]?.remove(listener)
     }
-
 }
 
 private val Downloadable.mixedUniqueId: String
@@ -132,13 +130,15 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
         fetch.enqueue(request, null, null)
     }
 
-
     var config: Settings
         get() {
             return Settings(fetchConfig.concurrentLimit, fetchConfig.globalNetworkType.settingsNetworkType())
         }
         set(value) {
+            var currentDownloads: List<Int> = emptyList()
+            fetch.getDownloadsWithStatus(DOWNLOADING, Func { list -> currentDownloads = list.map { it.id } })
             if (::fetchConfig.isInitialized) {
+                fetch.pause(currentDownloads)
                 fetch.close()
             }
 
@@ -146,6 +146,8 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
                 .setDownloadConcurrentLimit(value.concurrentDownloads)
                 .setGlobalNetworkType(value.networkType.fetchNetworkType())
                 .build()
+
+            fetch.resume(currentDownloads)
         }
 
     private lateinit var fetchConfig: FetchConfiguration
@@ -178,9 +180,9 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
 
     private val foregroundNotificationId = 1
 
-    override fun onAdded(download: Download) { }
+    override fun onAdded(download: Download) {}
 
-    override fun onCancelled(download: Download) { }
+    override fun onCancelled(download: Download) {}
 
     override fun onCompleted(download: Download) {
         val currentDownloadable = map[download.id] ?: return
@@ -191,9 +193,9 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
         }))
     }
 
-    override fun onDeleted(download: Download) { }
+    override fun onDeleted(download: Download) {}
 
-    override fun onDownloadBlockUpdated(download: Download, downloadBlock: DownloadBlock, totalBlocks: Int) { }
+    override fun onDownloadBlockUpdated(download: Download, downloadBlock: DownloadBlock, totalBlocks: Int) {}
 
     override fun onError(download: Download, error: Error, throwable: Throwable?) {
         val currentDownloadable = map[download.id] ?: return
@@ -217,18 +219,18 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
         facade?.onProgress(currentDownloadable.mixedUniqueId, download.progress)
     }
 
-    override fun onQueued(download: Download, waitingOnNetwork: Boolean) { }
+    override fun onQueued(download: Download, waitingOnNetwork: Boolean) {}
 
-    override fun onRemoved(download: Download) { }
+    override fun onRemoved(download: Download) {}
 
-    override fun onResumed(download: Download) { }
+    override fun onResumed(download: Download) {}
 
     override fun onStarted(download: Download, downloadBlocks: List<DownloadBlock>, totalBlocks: Int) {
         val currentDownloadable = map[download.id] ?: return
         facade?.onStart(currentDownloadable.mixedUniqueId)
     }
 
-    override fun onWaitingNetwork(download: Download) { }
+    override fun onWaitingNetwork(download: Download) {}
 
     override fun onDestroy() {
         super.onDestroy()
@@ -237,7 +239,7 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
     }
 
     private val builder by lazy { Notification.Builder(this@DownloadServiceImpl) }
-    private fun notification(downloadable: Downloadable, progress: Int, notificationDescription: DownloadNotification) : Notification {
+    private fun notification(downloadable: Downloadable, progress: Int, notificationDescription: DownloadNotification): Notification {
         val texts = notificationDescription.progress(downloadable.downloadableName!!)
         return builder
             .setSmallIcon(notificationDescription.iconId)
