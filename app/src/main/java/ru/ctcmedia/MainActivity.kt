@@ -1,6 +1,6 @@
 package ru.ctcmedia
 
-import android.app.Notification
+import android.R.drawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Parcel
@@ -11,50 +11,51 @@ import kotlinx.coroutines.experimental.GlobalScope
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import ru.ctcmedia.downloadservice.R
-import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadServiceFacade
+import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadNotification
+import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadService
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.cancelDownload
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.forget
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.observe
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.resumeDownload
-import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType
-import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NotificationSettings
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Wifi
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
 
 class MainActivity : AppCompatActivity(), DownloadStatusListener {
+
+    val file by lazy { DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "${filesDir.path}/video/16mb.mp4") }
+    val bigFile by lazy { DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "${filesDir.path}/video/128mb.mp4") }
+
+    private inner class DownloadWrapper(val file: DownloadableFile) : DownloadStatusListener {
+
+        init {
+            file.observe(this)
+        }
+
+        override fun downloadFinish() {
+        }
+
+        override fun downloadError() {
+            // Implement your custom error handling
+        }
+    }
+
+    private val files by lazy { arrayOf(file, bigFile).map { DownloadWrapper(it) } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        DownloadServiceFacade.apply {
-            configuration = Settings(2, NetworkType.Wifi)
-            notificationSettings = NotificationSettings(
-                Notification.Builder(this@MainActivity)
-                    .setContentTitle("Скачивается...")
-                    .setSmallIcon(android.R.drawable.ic_popup_sync),
-                { builder, progress ->
-                    builder
-                        .setOngoing(true)
-                        .setProgress(100, progress, false)
-                        .setContentText("$progress из 100")
-                        .setSmallIcon(android.R.drawable.ic_popup_sync).build()
-                },
-                Notification.Builder(this@MainActivity)
-                    .setContentTitle("Ошибка!")
-                    .setSmallIcon(android.R.drawable.ic_popup_sync)
-                    .setOngoing(false),
-                Notification.Builder(this@MainActivity)
-                    .setContentTitle("Файл скачан")
-                    .setSmallIcon(android.R.drawable.ic_popup_sync)
-                    .setOngoing(false)
-            )
+        files //read only
+
+        DownloadService.apply {
+
+            notificationSettings = DownloadNotification(drawable.ic_popup_sync) {
+                "Идет загрузка..." to it
+            }
 
             bindContext {
-                val file = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_16MB.dat", "${filesDir.path}/video/16mb.mp4")
-                val bigFile = DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_128MB.dat", "${filesDir.path}/video/128mb.mp4")
-
                 file.apply {
                     resumeDownload()
                     observe(this@MainActivity)
@@ -66,10 +67,16 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
                     delay(10000)
                     file.forget(this@MainActivity)
                     delay(10000)
+                    configuration = Settings(2, Wifi)
                     file.cancelDownload()
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        DownloadService.apply { unbindContext() }
+        super.onDestroy()
     }
 
     // DownloadStatusListener
@@ -96,6 +103,9 @@ class MainActivity : AppCompatActivity(), DownloadStatusListener {
 }
 
 class DownloadableFile : Downloadable {
+
+    override val downloadableName: String?
+        get() = remoteUrl.lastPathSegment
 
     constructor(remoteUrl: String, localUrl: String) {
         this.remoteUrl = Uri.parse(remoteUrl)

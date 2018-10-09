@@ -25,7 +25,7 @@
         </activity>
 
         <service
-            android:name="ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadService"
+            android:name="ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadServiceImpl"
             android:exported="false" />
     </application>
 
