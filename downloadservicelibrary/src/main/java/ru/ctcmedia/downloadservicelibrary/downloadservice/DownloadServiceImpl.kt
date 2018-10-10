@@ -31,24 +31,39 @@ import java.io.File
 
 typealias DownloadNotificationDescription = Pair<String?, String?>
 
-class DownloadNotification(val iconId: Int, val progress: (downloadableName: String) -> DownloadNotificationDescription)
+/*
+* Класс описывающий уведомление при скачивании файла
+* */
+data class DownloadNotification(val iconId: Int, val progress: (downloadableName: String) -> DownloadNotificationDescription)
 
+/*
+* Сервис в котором происходит вся работа
+* */
 object DownloadService : android.os.Binder() {
 
     private val runners = arrayListOf<DownloadService.() -> Unit>()
 
+    /*
+    * Метод который отрабатывает при готовности сервиса к работе
+    * */
     fun onReady(callback: DownloadService.() -> Unit) {
         service?.run { callback.invoke(this@DownloadService) } ?: runners.add(callback)
     }
 
     private val downloadableListeners = mutableMapOf<String, ArrayList<DownloadStatusListener>>()
 
+    /*
+    * Метод назначающий уведомление на сервис
+    * */
     fun notifyWith(notificationDescription: () -> DownloadNotification) {
         notificationSettings = notificationDescription()
     }
 
     internal lateinit var notificationSettings: DownloadNotification
 
+    /*
+    * Параметры скачивания описываются классом Settings
+    * */
     var configuration: Settings = Settings()
         set(value) {
             if (field == value) return
@@ -57,9 +72,12 @@ object DownloadService : android.os.Binder() {
             service?.config = value
         }
 
-    var service: DownloadServiceImpl? = null
+    internal var service: DownloadServiceImpl? = null
     private lateinit var serviceConnection: ServiceConnection
 
+    /*
+    * Метод, стартующий сервис, после данного метода отрабатывает onReady
+    * */
     fun Context.bindContext() {
         serviceConnection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -80,6 +98,9 @@ object DownloadService : android.os.Binder() {
         applicationContext.bindService(intent, serviceConnection, 0)
     }
 
+    /*
+    * Отвязка сервиса
+    * */
     fun Context.unbindContext() {
         applicationContext.unbindService(serviceConnection)
     }
@@ -108,37 +129,37 @@ object DownloadService : android.os.Binder() {
         }
     }
 
-    fun onStart(downloadableId: String) {
+    internal fun onStart(downloadableId: String) {
         downloadableListeners[downloadableId]?.apply {
             forEach { it.downloadBegan() }
         }
     }
 
-    fun onProgress(downloadableId: String, progress: Int) {
+    internal fun onProgress(downloadableId: String, progress: Int) {
         downloadableListeners[downloadableId]?.apply {
             forEach { it.downloadProgressUpdate(progress / 100.0) }
         }
     }
 
-    fun onError(downloadableId: String) {
+    internal fun onError(downloadableId: String) {
         downloadableListeners[downloadableId]?.apply {
             forEach { it.downloadFailed(Error("Ошибка")) }
         }
     }
 
-    fun onFinish(downloadableId: String) {
+    internal fun onFinish(downloadableId: String) {
         downloadableListeners[downloadableId]?.apply {
             forEach { it.downloadFinished() }
         }
     }
 
-    fun register(listener: DownloadStatusListener, `for`: Downloadable) {
+    internal fun register(listener: DownloadStatusListener, `for`: Downloadable) {
         val id = `for`.mixedUniqueId
         val receivers = downloadableListeners[id] ?: arrayListOf<DownloadStatusListener>().also { downloadableListeners[id] = it }
         receivers.add(listener)
     }
 
-    fun unregister(listener: DownloadStatusListener, `for`: Downloadable) {
+    internal fun unregister(listener: DownloadStatusListener, `for`: Downloadable) {
         val id = `for`.mixedUniqueId
         downloadableListeners[id]?.remove(listener)
     }
@@ -147,7 +168,7 @@ object DownloadService : android.os.Binder() {
 private val Downloadable.mixedUniqueId: String
     get() = "${this.javaClass.simpleName}||$downloadableUniqueId"
 
-class DownloadServiceImpl : IntentService("Service"), FetchListener {
+internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
 
     companion object {
         private const val downloadNameKey = "downloadNameKey"
