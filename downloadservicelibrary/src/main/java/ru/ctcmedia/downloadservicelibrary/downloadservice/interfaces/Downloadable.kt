@@ -20,6 +20,9 @@ val Downloadable.isDownloadLocalFileExist: Boolean
 val Downloadable.isDownloading: Boolean
     get() = File(localUrl.downloadable().path).exists()
 
+fun Downloadable.getProgress(callback: (Double) -> Unit) {
+    DownloadService.progressFor(this, callback)
+}
 
 fun Downloadable.observe(listener: DownloadStatusListener) {
     DownloadService.register(listener, this)

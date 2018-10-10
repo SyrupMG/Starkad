@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package ru.ctcmedia.downloadservicelibrary.downloadservice
 
 import android.app.IntentService
@@ -7,33 +9,45 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.net.Uri
 import android.os.IBinder
 import android.support.v4.content.ContextCompat
 import com.tonyodev.fetch2.Download
-import com.tonyodev.fetch2.Error
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.FetchListener
 import com.tonyodev.fetch2.Request
-import com.tonyodev.fetch2.Status.DOWNLOADING
 import com.tonyodev.fetch2.Status.QUEUED
+import com.tonyodev.fetch2.util.DEFAULT_GROUP_ID
 import com.tonyodev.fetch2core.DownloadBlock
+import com.tonyodev.fetch2core.Extras
 import com.tonyodev.fetch2core.Func
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.downloadable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.settingsNetworkType
+import java.io.File
 
-typealias DownloadNotificationDescription = Pair<String, String>
+typealias DownloadNotificationDescription = Pair<String?, String?>
 
 class DownloadNotification(val iconId: Int, val progress: (downloadableName: String) -> DownloadNotificationDescription)
 
 object DownloadService : android.os.Binder() {
 
+    private val runners = arrayListOf<DownloadService.() -> Unit>()
+
+    fun onReady(callback: DownloadService.() -> Unit) {
+        service?.run { callback.invoke(this@DownloadService) } ?: runners.add(callback)
+    }
+
     private val downloadableListeners = mutableMapOf<String, ArrayList<DownloadStatusListener>>()
 
-    lateinit var notificationSettings: DownloadNotification
+    fun notifyWith(notificationDescription: () -> DownloadNotification) {
+        notificationSettings = notificationDescription()
+    }
+
+    internal lateinit var notificationSettings: DownloadNotification
 
     var configuration: Settings = Settings()
         set(value) {
@@ -46,13 +60,14 @@ object DownloadService : android.os.Binder() {
     var service: DownloadServiceImpl? = null
     private lateinit var serviceConnection: ServiceConnection
 
-    fun Context.bindContext(callback: () -> Unit) {
+    fun Context.bindContext() {
         serviceConnection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                 configuration = service!!.config
                 service!!.facade = this@DownloadService
 
-                callback()
+                runners.forEach { this@DownloadService.it() }
+                runners.clear()
             }
 
             override fun onServiceDisconnected(p0: ComponentName?) {
@@ -62,46 +77,58 @@ object DownloadService : android.os.Binder() {
 
         val intent = Intent(this, DownloadServiceImpl::class.java)
         ContextCompat.startForegroundService(this, intent)
-        bindService(intent, serviceConnection, 0)
+        applicationContext.bindService(intent, serviceConnection, 0)
     }
 
     fun Context.unbindContext() {
-        unbindService(serviceConnection)
+        applicationContext.unbindService(serviceConnection)
     }
 
     internal fun download(downloadable: Downloadable) {
-        service?.resume(downloadable)
+        onReady {
+            service?.resume(downloadable)
+        }
+        downloadableListeners[downloadable.mixedUniqueId]?.apply {
+            forEach { it.downloadBegan() }
+        }
     }
 
     internal fun cancel(downloadable: Downloadable) {
-        service?.cancel(downloadable)
+        downloadableListeners[downloadable.mixedUniqueId]?.apply {
+            forEach { it.downloadFinished() }
+        }
+        onReady {
+            service?.cancel(downloadable)
+        }
     }
 
-    fun current(callback: (List<Download>?) -> Unit) {
-        service?.current { callback(it) }
+    internal fun progressFor(downloadable: Downloadable, callback: (Double) -> Unit) {
+        onReady {
+            service?.progressFor(downloadable, callback)
+        }
     }
 
     fun onStart(downloadableId: String) {
         downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadStart() }
+            forEach { it.downloadBegan() }
         }
     }
 
     fun onProgress(downloadableId: String, progress: Int) {
         downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadOnProgress(progress) }
+            forEach { it.downloadProgressUpdate(progress / 100.0) }
         }
     }
 
     fun onError(downloadableId: String) {
         downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadError() }
+            forEach { it.downloadFailed(Error("Ошибка")) }
         }
     }
 
     fun onFinish(downloadableId: String) {
         downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadFinish() }
+            forEach { it.downloadFinished() }
         }
     }
 
@@ -122,11 +149,20 @@ private val Downloadable.mixedUniqueId: String
 
 class DownloadServiceImpl : IntentService("Service"), FetchListener {
 
+    companion object {
+        private const val downloadNameKey = "downloadNameKey"
+    }
+
     var facade: DownloadService? = null
+        set(value) {
+            field = value
+            fetch.resumeGroup(DEFAULT_GROUP_ID)
+        }
 
     fun resume(downloadable: Downloadable) {
         val request = Request(downloadable.remoteUrl.toString(), downloadable.localUrl.downloadable().toString())
-        map[request.id] = downloadable
+        request.tag = downloadable.mixedUniqueId
+        downloadable.downloadableName?.also { request.extras = Extras(mapOf(downloadNameKey to it)) }
         fetch.enqueue(request, null, null)
     }
 
@@ -135,23 +171,19 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
             return Settings(fetchConfig.concurrentLimit, fetchConfig.globalNetworkType.settingsNetworkType())
         }
         set(value) {
-            var currentDownloads: List<Int> = emptyList()
-            fetch.getDownloadsWithStatus(DOWNLOADING, Func { list -> currentDownloads = list.map { it.id } })
-            if (::fetchConfig.isInitialized) {
-                fetch.pause(currentDownloads)
-                fetch.close()
-            }
+            fetch.pauseGroup(DEFAULT_GROUP_ID)
+            fetch.close()
 
             fetchConfig = FetchConfiguration.Builder(this)
                 .setDownloadConcurrentLimit(value.concurrentDownloads)
                 .setGlobalNetworkType(value.networkType.fetchNetworkType())
                 .build()
 
-            fetch.resume(currentDownloads)
+            fetch.resumeGroup(DEFAULT_GROUP_ID)
         }
 
     private lateinit var fetchConfig: FetchConfiguration
-    private val fetch
+    val fetch
         get() = Fetch.getInstance(fetchConfig).also { it.addListener(this) }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -160,34 +192,42 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
     }
 
     fun cancel(downloadable: Downloadable) {
+        getDownload(downloadable.mixedUniqueId) {
+            this ?: return@getDownload
+            fetch.cancel(id)
+            notificationManager.cancel(id)
+        }
+    }
+
+    private fun getDownload(uniqueId: String, callback: Download?.() -> Unit) {
         fetch.getDownloads(Func { list ->
-            val downloadableKey = map.filter { it.value == downloadable }.keys.firstOrNull()
-            val download = list.asSequence().firstOrNull { map[downloadableKey] == downloadable }
-            download?.let {
-                fetch.cancel(it.id)
-                notificationManager.cancel(download.id)
-            }
+            callback(list.firstOrNull { it.tag == uniqueId })
         })
     }
 
-    fun current(callback: (List<Download>?) -> Unit) {
-        fetch.getDownloadsWithStatus(DOWNLOADING, Func { callback(it) })
+    fun progressFor(downloadable: Downloadable, callback: (Double) -> Unit) {
+        getDownload(downloadable.mixedUniqueId) {
+            this ?: return@getDownload callback(0.0)
+            callback(progress / 100.0)
+        }
     }
 
     private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
 
-    private val map = mutableMapOf<Int, Downloadable>()
-
     private val foregroundNotificationId = 1
 
-    override fun onAdded(download: Download) {}
+    override fun onAdded(download: Download) {
+    }
 
     override fun onCancelled(download: Download) {}
 
     override fun onCompleted(download: Download) {
-        val currentDownloadable = map[download.id] ?: return
+        val fileName = Uri.parse(download.file)
+        val from = File(fileName.downloadable().path)
+        val to = File(fileName.path)
+        from.renameTo(to)
         notificationManager.cancel(download.id)
-        facade?.onFinish(currentDownloadable.mixedUniqueId)
+        facade?.onFinish(download.tag ?: "")
         (fetch.getDownloadsWithStatus(QUEUED, Func {
             if (it.isEmpty()) stopSelf()
         }))
@@ -197,9 +237,8 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
 
     override fun onDownloadBlockUpdated(download: Download, downloadBlock: DownloadBlock, totalBlocks: Int) {}
 
-    override fun onError(download: Download, error: Error, throwable: Throwable?) {
-        val currentDownloadable = map[download.id] ?: return
-        facade?.onError(currentDownloadable.mixedUniqueId)
+    override fun onError(download: Download, error: com.tonyodev.fetch2.Error, throwable: Throwable?) {
+        facade?.onError(download.tag ?: "")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -213,10 +252,10 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
     }
 
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
-        val currentDownloadable = map[download.id] ?: return
-
-        notificationManager.notify(download.id, notification(currentDownloadable, download.progress, facade?.notificationSettings!!))
-        facade?.onProgress(currentDownloadable.mixedUniqueId, download.progress)
+        facade?.run {
+            notificationManager.notify(download.id, notification(download, download.progress, notificationSettings))
+            onProgress(download.tag ?: "", download.progress)
+        }
     }
 
     override fun onQueued(download: Download, waitingOnNetwork: Boolean) {}
@@ -226,8 +265,7 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
     override fun onResumed(download: Download) {}
 
     override fun onStarted(download: Download, downloadBlocks: List<DownloadBlock>, totalBlocks: Int) {
-        val currentDownloadable = map[download.id] ?: return
-        facade?.onStart(currentDownloadable.mixedUniqueId)
+        facade?.onStart(download.tag ?: "")
     }
 
     override fun onWaitingNetwork(download: Download) {}
@@ -239,8 +277,8 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
     }
 
     private val builder by lazy { Notification.Builder(this@DownloadServiceImpl) }
-    private fun notification(downloadable: Downloadable, progress: Int, notificationDescription: DownloadNotification): Notification {
-        val texts = notificationDescription.progress(downloadable.downloadableName!!)
+    private fun notification(downloadable: Download, progress: Int, notificationDescription: DownloadNotification): Notification {
+        val texts = downloadable.extras.getString(downloadNameKey, "").let { notificationDescription.progress(it) }
         return builder
             .setSmallIcon(notificationDescription.iconId)
             .setContentTitle(texts.first)

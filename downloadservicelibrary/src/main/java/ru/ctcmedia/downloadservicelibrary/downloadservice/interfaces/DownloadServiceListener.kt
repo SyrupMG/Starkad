@@ -3,8 +3,8 @@ package ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces
 
 
 interface DownloadStatusListener {
-    fun downloadStart() {}
-    fun downloadOnProgress(progress: Int) {}
-    fun downloadFinish() {}
-    fun downloadError() {}
+    fun downloadBegan() {}
+    fun downloadProgressUpdate(progress: Double) {}
+    fun downloadFinished() {}
+    fun downloadFailed(error: Error) {}
 }
