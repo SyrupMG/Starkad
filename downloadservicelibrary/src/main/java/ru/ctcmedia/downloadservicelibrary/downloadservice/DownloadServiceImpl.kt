@@ -228,6 +228,10 @@ class DownloadServiceImpl : IntentService("Service"), FetchListener {
         from.renameTo(to)
         notificationManager.cancel(download.id)
         facade?.onFinish(download.tag ?: "")
+        checkNeedStop()
+    }
+
+    private fun checkNeedStop() {
         (fetch.getDownloadsWithStatus(QUEUED, Func {
             if (it.isEmpty()) stopSelf()
         }))
