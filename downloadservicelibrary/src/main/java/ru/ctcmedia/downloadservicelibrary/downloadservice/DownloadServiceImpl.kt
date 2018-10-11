@@ -17,7 +17,7 @@ import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.FetchListener
 import com.tonyodev.fetch2.Request
-import com.tonyodev.fetch2.Status.QUEUED
+import com.tonyodev.fetch2.Status.PAUSED
 import com.tonyodev.fetch2.util.DEFAULT_GROUP_ID
 import com.tonyodev.fetch2core.DownloadBlock
 import com.tonyodev.fetch2core.Extras
@@ -180,11 +180,16 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
             fetch.resumeGroup(DEFAULT_GROUP_ID)
         }
 
+    private val requestQueue = arrayListOf<Request>()
+    private var downloadingNow = 0
+
     fun resume(downloadable: Downloadable) {
         val request = Request(downloadable.remoteUrl.toString(), downloadable.localUrl.downloadable().toString())
         request.tag = downloadable.mixedUniqueId
         downloadable.downloadableName?.also { request.extras = Extras(mapOf(downloadNameKey to it)) }
-        fetch.enqueue(request, null, null)
+
+        requestQueue.add(request)
+        if (downloadingNow < config.concurrentDownloads) fetch.enqueue(requestQueue.first()).also { downloadingNow++ }
     }
 
     var config: Settings
@@ -247,13 +252,21 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
         val from = File(fileName.downloadable().path)
         val to = File(fileName.path)
         from.renameTo(to)
+
         notificationManager.cancel(download.id)
         facade?.onFinish(download.tag ?: "")
+
         checkNeedStop()
+
+        requestQueue.removeAll {
+            it.id == download.id
+        }
+        downloadingNow--
+        fetch.enqueue(requestQueue.first()).also { downloadingNow++ }
     }
 
     private fun checkNeedStop() {
-        (fetch.getDownloadsWithStatus(QUEUED, Func {
+        (fetch.getDownloadsWithStatus(PAUSED, Func {
             if (it.isEmpty()) stopSelf()
         }))
     }
