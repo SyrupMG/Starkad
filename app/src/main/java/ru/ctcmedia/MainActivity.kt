@@ -6,6 +6,7 @@ import android.R.drawable
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
+import android.support.v7.widget.DividerItemDecoration
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
@@ -63,8 +64,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                recyclerView.adapter = filesAdapter
-                recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
+                recyclerView.apply {
+                    adapter = filesAdapter
+                    val myLayoutManager = LinearLayoutManager(this@MainActivity)
+                    layoutManager = myLayoutManager
+                    addItemDecoration(DividerItemDecoration(this@MainActivity, myLayoutManager.orientation))
+                }
 
                 spinner.onItemSelectedListener = object : OnItemSelectedListener {
                     override fun onItemSelected(adapterView: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -114,11 +119,12 @@ class FilesAdapter(private val files: Array<DownloadableFile>, private val click
         fun bind(file: DownloadableFile, click: (Downloadable) -> Unit) {
             this.file?.forget(this)
 
-            val status = if (file.isDownloading) {
-                "cancelled"
-            } else {
-                ""
+            val status = when {
+                file.isDownloading -> "cancelled"
+                file.isDownloadLocalFileExist -> "downloaded"
+                else -> ""
             }
+
             itemView.name.text = "${file.downloadableName} $status"
             downloadProgressUpdate(0.0)
             file.getProgress { downloadProgressUpdate(it) }
