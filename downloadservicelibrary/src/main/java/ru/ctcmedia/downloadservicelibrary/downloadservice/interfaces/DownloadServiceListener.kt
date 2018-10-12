@@ -1,5 +1,7 @@
 package ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces
 
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress
+
 /*
 * Интерфейс описывающий события которые могут порождать классы наследующие Downloadable
 * */
@@ -12,7 +14,9 @@ interface DownloadStatusListener {
     /*
     * Метод вызывается при изменении процента скачанного файла
     * */
-    fun downloadProgressUpdate(progress: Double) {}
+
+    // TODO(Сделать структуру)
+    fun downloadProgressUpdate(progress: FileDownloadProgress) {}
 
     /*
     * Метод вызывается при окончании скачивания файла

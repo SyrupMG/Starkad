@@ -3,6 +3,7 @@ package ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces
 import android.net.Uri
 import android.os.Parcelable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadService
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress
 import java.io.File
 
 /*
@@ -54,7 +55,7 @@ val Downloadable.isDownloading: Boolean
 /*
 * Получение процента скачанного файла
 * */
-fun Downloadable.getProgress(callback: (Double) -> Unit) {
+fun Downloadable.getProgress(callback: (FileDownloadProgress) -> Unit) {
     DownloadService.progressFor(this, callback)
 }
 

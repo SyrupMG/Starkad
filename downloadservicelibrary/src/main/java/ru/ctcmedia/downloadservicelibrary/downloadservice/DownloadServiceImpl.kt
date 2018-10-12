@@ -25,6 +25,7 @@ import com.tonyodev.fetch2core.Func
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.downloadable
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.settingsNetworkType
 import ru.ctcmedia.downloadservicelibrary.lazyObserving
@@ -124,7 +125,7 @@ object DownloadService : android.os.Binder() {
         }
     }
 
-    internal fun progressFor(downloadable: Downloadable, callback: (Double) -> Unit) {
+    internal fun progressFor(downloadable: Downloadable, callback: (FileDownloadProgress) -> Unit) {
         onReady {
             service?.progressFor(downloadable, callback)
         }
@@ -138,7 +139,7 @@ object DownloadService : android.os.Binder() {
 
     internal fun onProgress(downloadableId: String, progress: Int) {
         downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadProgressUpdate(progress / 100.0) }
+            forEach { it.downloadProgressUpdate(FileDownloadProgress(progress / 100.0)) }
         }
     }
 
@@ -236,10 +237,10 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         })
     }
 
-    fun progressFor(downloadable: Downloadable, callback: (Double) -> Unit) {
+    fun progressFor(downloadable: Downloadable, callback: (FileDownloadProgress) -> Unit) {
         getDownload(downloadable.mixedUniqueId) {
-            this ?: return@getDownload callback(0.0)
-            callback(progress / 100.0)
+            this ?: return@getDownload callback(FileDownloadProgress(0.0))
+            callback(FileDownloadProgress(progress / 100.0))
         }
     }
 

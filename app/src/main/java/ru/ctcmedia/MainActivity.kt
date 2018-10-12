@@ -29,6 +29,7 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.isDownloadL
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.isDownloading
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.observe
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.resumeDownload
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Cellular
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Wifi
 
@@ -126,7 +127,7 @@ class FilesAdapter(private val files: Array<DownloadableFile>, private val click
             }
 
             itemView.name.text = "${file.downloadableName} $status"
-            downloadProgressUpdate(0.0)
+            downloadProgressUpdate(FileDownloadProgress(0.0/**/))
             file.getProgress { downloadProgressUpdate(it) }
 
             this.file = file
@@ -139,8 +140,8 @@ class FilesAdapter(private val files: Array<DownloadableFile>, private val click
             itemView.name.text = "${file?.downloadableName} begin"
         }
 
-        override fun downloadProgressUpdate(progress: Double) {
-            itemView.progressBar.progress = (progress * 100).toInt()
+        override fun downloadProgressUpdate(progress: FileDownloadProgress) {
+            itemView.progressBar.progress = (progress.downloadProgress * 100).toInt()
         }
 
         override fun downloadFinished() {
