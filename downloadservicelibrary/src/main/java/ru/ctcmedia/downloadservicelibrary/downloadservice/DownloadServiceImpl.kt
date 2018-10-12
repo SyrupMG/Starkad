@@ -27,6 +27,7 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadabl
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.downloadable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.settingsNetworkType
+import ru.ctcmedia.downloadservicelibrary.lazyObserving
 import java.io.File
 
 typealias DownloadNotificationDescription = Pair<String?, String?>
@@ -168,7 +169,7 @@ object DownloadService : android.os.Binder() {
 private val Downloadable.mixedUniqueId: String
     get() = "${this.javaClass.simpleName}||$downloadableUniqueId"
 
-internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
+internal class DownloadServiceImpl : IntentService("DownloadService"), FetchListener {
 
     companion object {
         private const val downloadNameKey = "downloadNameKey"
@@ -180,7 +181,7 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
             fetch.resumeGroup(DEFAULT_GROUP_ID)
         }
 
-    private val requestQueue = arrayListOf<Request>()
+    private val requestQueue = arrayListOf<Download>()
     private var downloadingNow = 0
 
     fun resume(downloadable: Downloadable) {
@@ -188,11 +189,10 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
         request.tag = downloadable.mixedUniqueId
         downloadable.downloadableName?.also { request.extras = Extras(mapOf(downloadNameKey to it)) }
 
-        requestQueue.add(request)
-        if (downloadingNow < config.concurrentDownloads) fetch.enqueue(requestQueue.first()).also { downloadingNow++ }
+        fetch.enqueue(request)
     }
 
-    var config: Settings
+    internal var config: Settings
         get() {
             return Settings(fetchConfig.concurrentLimit, fetchConfig.globalNetworkType.settingsNetworkType())
         }
@@ -208,9 +208,15 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
             fetch.resumeGroup(DEFAULT_GROUP_ID)
         }
 
-    private lateinit var fetchConfig: FetchConfiguration
-    val fetch
-        get() = Fetch.getInstance(fetchConfig).also { it.addListener(this) }
+    private var fetchConfig: FetchConfiguration by lazyObserving({ FetchConfiguration.Builder(this).build() }, didSet = {
+        if (::fetch.isInitialized && !fetch.isClosed) {
+            fetch.removeListener(this)
+        }
+        fetch = Fetch.getInstance(fetchConfig)
+        fetch.addListener(this)
+    })
+    lateinit var fetch: Fetch
+        private set
 
     override fun onBind(intent: Intent?): IBinder? {
         fetchConfig = FetchConfiguration.Builder(this).build()
@@ -221,7 +227,6 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
         getDownload(downloadable.mixedUniqueId) {
             this ?: return@getDownload
             fetch.cancel(id)
-            notificationManager.cancel(id)
         }
     }
 
@@ -243,9 +248,19 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
     private val foregroundNotificationId = 1
 
     override fun onAdded(download: Download) {
+        if (downloadingNow >= config.concurrentDownloads) {
+            fetch.pause(download.id)
+            requestQueue.add(download)
+            downloadingNow--
+        } else {
+            downloadingNow++
+        }
     }
 
-    override fun onCancelled(download: Download) {}
+    override fun onCancelled(download: Download) {
+        downloadingNow--
+        notificationManager.cancel(download.id)
+    }
 
     override fun onCompleted(download: Download) {
         val fileName = Uri.parse(download.file)
@@ -262,7 +277,11 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
             it.id == download.id
         }
         downloadingNow--
-        fetch.enqueue(requestQueue.first()).also { downloadingNow++ }
+        val nextDownload = requestQueue.firstOrNull() ?: return
+        fetch.resume(nextDownload.id).also {
+            requestQueue.remove(download)
+            downloadingNow++
+        }
     }
 
     private fun checkNeedStop() {
@@ -287,6 +306,8 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
     override fun onHandleIntent(intent: Intent?) {}
 
     override fun onPaused(download: Download) {
+        notificationManager.cancel(download.id)
+        downloadingNow--
     }
 
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
@@ -296,7 +317,9 @@ internal class DownloadServiceImpl : IntentService("Service"), FetchListener {
         }
     }
 
-    override fun onQueued(download: Download, waitingOnNetwork: Boolean) {}
+    override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
+        downloadingNow++
+    }
 
     override fun onRemoved(download: Download) {}
 
