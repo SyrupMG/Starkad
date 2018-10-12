@@ -14,8 +14,6 @@ interface DownloadStatusListener {
     /*
     * Метод вызывается при изменении процента скачанного файла
     * */
-
-    // TODO(Сделать структуру)
     fun downloadProgressUpdate(progress: FileDownloadProgress) {}
 
     /*
