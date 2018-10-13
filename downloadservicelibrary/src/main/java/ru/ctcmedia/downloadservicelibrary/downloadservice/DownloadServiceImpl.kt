@@ -33,39 +33,39 @@ import java.io.File
 
 typealias DownloadNotificationDescription = Pair<String?, String?>
 
-/*
-* Класс описывающий уведомление при скачивании файла
-* */
+/**
+ * Класс описывающий уведомление при скачивании файла
+ */
 data class DownloadNotification(val iconId: Int, val progress: (downloadableName: String) -> DownloadNotificationDescription)
 
-/*
-* Сервис в котором происходит вся работа
-* */
+/**
+ * Сервис в котором происходит вся работа
+ */
 object DownloadService : android.os.Binder() {
 
     private val runners = arrayListOf<DownloadService.() -> Unit>()
 
-    /*
-    * Метод который отрабатывает при готовности сервиса к работе
-    * */
+    /**
+     * Метод который отрабатывает при готовности сервиса к работе
+     */
     fun onReady(callback: DownloadService.() -> Unit) {
         service?.run { callback.invoke(this@DownloadService) } ?: runners.add(callback)
     }
 
     private val downloadableListeners = mutableMapOf<String, ArrayList<DownloadStatusListener>>()
 
-    /*
-    * Метод назначающий уведомление на сервис
-    * */
+    /**
+     * Метод назначающий уведомление на сервис
+     */
     fun notifyWith(notificationDescription: () -> DownloadNotification) {
         notificationSettings = notificationDescription()
     }
 
     internal lateinit var notificationSettings: DownloadNotification
 
-    /*
-    * Параметры скачивания описываются классом Settings
-    * */
+    /**
+     * Параметры скачивания описываются классом Settings
+     */
     var configuration: Settings = Settings()
         set(value) {
             if (field == value) return
@@ -77,9 +77,9 @@ object DownloadService : android.os.Binder() {
     internal var service: DownloadServiceImpl? = null
     private lateinit var serviceConnection: ServiceConnection
 
-    /*
-    * Метод, стартующий сервис, после данного метода отрабатывает onReady
-    * */
+    /**
+     * Метод, стартующий сервис, после данного метода отрабатывает onReady
+     */
     fun Context.bindContext() {
         serviceConnection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -100,9 +100,9 @@ object DownloadService : android.os.Binder() {
         applicationContext.bindService(intent, serviceConnection, 0)
     }
 
-    /*
-    * Отвязка сервиса
-    * */
+    /**
+     * Отвязка сервиса
+     */
     fun Context.unbindContext() {
         applicationContext.unbindService(serviceConnection)
     }
@@ -202,9 +202,9 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
             fetch.close()
 
             fetchConfig = FetchConfiguration.Builder(this)
-                .setDownloadConcurrentLimit(value.concurrentDownloads)
-                .setGlobalNetworkType(value.networkType.fetchNetworkType())
-                .build()
+                    .setDownloadConcurrentLimit(value.concurrentDownloads)
+                    .setGlobalNetworkType(value.networkType.fetchNetworkType())
+                    .build()
 
             fetch.resumeGroup(DEFAULT_GROUP_ID)
         }
@@ -342,10 +342,10 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
     private fun notification(downloadable: Download, progress: Int, notificationDescription: DownloadNotification): Notification {
         val texts = downloadable.extras.getString(downloadNameKey, "").let { notificationDescription.progress(it) }
         return builder
-            .setSmallIcon(notificationDescription.iconId)
-            .setContentTitle(texts.first)
-            .setContentText(texts.second)
-            .setProgress(100, progress, false)
-            .build()
+                .setSmallIcon(notificationDescription.iconId)
+                .setContentTitle(texts.first)
+                .setContentText(texts.second)
+                .setProgress(100, progress, false)
+                .build()
     }
 }
