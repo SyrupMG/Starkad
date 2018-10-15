@@ -17,7 +17,16 @@ import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.FetchListener
 import com.tonyodev.fetch2.Request
+import com.tonyodev.fetch2.Status
+import com.tonyodev.fetch2.Status.ADDED
+import com.tonyodev.fetch2.Status.CANCELLED
+import com.tonyodev.fetch2.Status.DELETED
+import com.tonyodev.fetch2.Status.DOWNLOADING
+import com.tonyodev.fetch2.Status.FAILED
+import com.tonyodev.fetch2.Status.NONE
 import com.tonyodev.fetch2.Status.PAUSED
+import com.tonyodev.fetch2.Status.QUEUED
+import com.tonyodev.fetch2.Status.REMOVED
 import com.tonyodev.fetch2.util.DEFAULT_GROUP_ID
 import com.tonyodev.fetch2core.DownloadBlock
 import com.tonyodev.fetch2core.Extras
@@ -31,6 +40,9 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.settingsNetwo
 import ru.ctcmedia.downloadservicelibrary.lazyObserving
 import java.io.File
 
+private val completedStatuses = arrayOf(Status.COMPLETED, CANCELLED, FAILED, REMOVED, DELETED)
+private val pendingStatuses = arrayOf(Status.DOWNLOADING, PAUSED)
+private val workingStatuses = pendingStatuses + arrayOf(QUEUED, ADDED, NONE)
 typealias DownloadNotificationDescription = Pair<String?, String?>
 
 /**
@@ -107,7 +119,8 @@ object DownloadService : android.os.Binder() {
         applicationContext.unbindService(serviceConnection)
     }
 
-    internal fun download(downloadable: Downloadable) {
+    internal fun Context.download(downloadable: Downloadable) {
+        bindContext()
         onReady {
             service?.resume(downloadable)
         }
@@ -116,7 +129,8 @@ object DownloadService : android.os.Binder() {
         }
     }
 
-    internal fun cancel(downloadable: Downloadable) {
+    internal fun Context.cancel(downloadable: Downloadable) {
+        bindContext()
         downloadableListeners[downloadable.mixedUniqueId]?.apply {
             forEach { it.downloadFinished() }
         }
@@ -180,10 +194,8 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         set(value) {
             field = value
             fetch.resumeGroup(DEFAULT_GROUP_ID)
+            organizeQueue()
         }
-
-    private val requestQueue = arrayListOf<Download>()
-    private var downloadingNow = 0
 
     fun resume(downloadable: Downloadable) {
         val request = Request(downloadable.remoteUrl.toString(), downloadable.localUrl.downloadable().toString())
@@ -207,6 +219,7 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
                 .build()
 
             fetch.resumeGroup(DEFAULT_GROUP_ID)
+            organizeQueue()
         }
 
     private var fetchConfig: FetchConfiguration by lazyObserving({ FetchConfiguration.Builder(this).build() }, didSet = {
@@ -223,6 +236,14 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         fetchConfig = FetchConfiguration.Builder(this).build()
         return DownloadService.apply { service = this@DownloadServiceImpl }
     }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(foregroundNotificationId, Notification.Builder(this).build())
+        DownloadService.apply { service = this@DownloadServiceImpl }
+        return START_STICKY
+    }
+
+    override fun onHandleIntent(intent: Intent?) {}
 
     fun cancel(downloadable: Downloadable) {
         getDownload(downloadable.mixedUniqueId) {
@@ -249,18 +270,11 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
     private val foregroundNotificationId = 1
 
     override fun onAdded(download: Download) {
-        if (downloadingNow >= config.concurrentDownloads) {
-            fetch.pause(download.id)
-            requestQueue.add(download)
-            downloadingNow--
-        } else {
-            downloadingNow++
-        }
+        organizeQueue()
     }
 
     override fun onCancelled(download: Download) {
-        downloadingNow--
-        notificationManager.cancel(download.id)
+        organizeQueue()
     }
 
     override fun onCompleted(download: Download) {
@@ -269,83 +283,111 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         val to = File(fileName.path)
         from.renameTo(to)
 
-        notificationManager.cancel(download.id)
         facade?.onFinish(download.tag ?: "")
 
-        checkNeedStop()
-
-        requestQueue.removeAll {
-            it.id == download.id
-        }
-        downloadingNow--
-        val nextDownload = requestQueue.firstOrNull() ?: return
-        fetch.resume(nextDownload.id).also {
-            requestQueue.remove(download)
-            downloadingNow++
-        }
+        organizeQueue()
     }
 
-    private fun checkNeedStop() {
-        (fetch.getDownloadsWithStatus(PAUSED, Func {
-            if (it.isEmpty()) stopSelf()
-        }))
+    private fun organizeQueue() {
+        fetch.getDownloads(Func { rawList ->
+            val list = rawList.sortedBy { it.id }
+            val working = list.firstOrNull { workingStatuses.contains(it.status) }?.let { true } ?: false
+            val deleted = list.filter { completedStatuses.contains(it.status) }.toTypedArray()
+            val downloading = list.filter { pendingStatuses.contains(it.status) }.toTypedArray()
+
+            val shouldDownload = downloading.take(config.concurrentDownloads)
+            val shouldPause = downloading.drop(config.concurrentDownloads)
+
+            fetch.resume(shouldDownload.asSequence().filter { it.status != DOWNLOADING }.map { it.id }.toList())
+            fetch.pause(shouldPause.asSequence().filter { it.status != PAUSED }.map { it.id }.toList())
+            fetch.delete(deleted.map { it.id })
+
+            if (working) notification(downloading.toList(), shouldDownload) else stopSelf()
+        })
     }
 
-    override fun onDeleted(download: Download) {}
+    private fun getTotalProgress(downloading: List<Download>, shouldDownload: List<Download>): Pair<String, Double> {
+
+        val sum = downloading.sumBy { it.progress }
+        val total = downloading.size * 100
+
+        val percent = sum.toDouble() / total
+
+        val names = shouldDownload.map { it.extras.getString(downloadNameKey, "") }.filter { it.isNotEmpty() }.joinToString()
+
+        return names to percent
+    }
+
+    override fun onDeleted(download: Download) {
+        organizeQueue()
+    }
 
     override fun onDownloadBlockUpdated(download: Download, downloadBlock: DownloadBlock, totalBlocks: Int) {}
 
     override fun onError(download: Download, error: com.tonyodev.fetch2.Error, throwable: Throwable?) {
         facade?.onError(download.tag ?: "")
-    }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(foregroundNotificationId, Notification.Builder(this).build())
-        return START_STICKY
+        organizeQueue()
     }
-
-    override fun onHandleIntent(intent: Intent?) {}
 
     override fun onPaused(download: Download) {
-        notificationManager.cancel(download.id)
-        downloadingNow--
+        organizeQueue()
     }
 
     override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
+        updateNotification()
         facade?.run {
-            notificationManager.notify(download.id, notification(download, download.progress, notificationSettings))
             onProgress(download.tag ?: "", download.progress)
         }
     }
 
     override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
-        downloadingNow++
+        organizeQueue()
     }
 
-    override fun onRemoved(download: Download) {}
+    override fun onRemoved(download: Download) {
+        organizeQueue()
+    }
 
-    override fun onResumed(download: Download) {}
+    override fun onResumed(download: Download) {
+        organizeQueue()
+    }
 
     override fun onStarted(download: Download, downloadBlocks: List<DownloadBlock>, totalBlocks: Int) {
         facade?.onStart(download.tag ?: "")
+
+        organizeQueue()
     }
 
     override fun onWaitingNetwork(download: Download) {}
 
     override fun onDestroy() {
         super.onDestroy()
-        notificationManager.cancelAll()
         stopForeground(true)
     }
 
     private val builder by lazy { Notification.Builder(this@DownloadServiceImpl) }
-    private fun notification(downloadable: Download, progress: Int, notificationDescription: DownloadNotification): Notification {
-        val texts = downloadable.extras.getString(downloadNameKey, "").let { notificationDescription.progress(it) }
-        return builder
+    private fun updateNotification() {
+        fetch.getDownloads(Func { list ->
+            val downloading = list.filter { pendingStatuses.contains(it.status) }
+            val shouldDownload = downloading.take(config.concurrentDownloads)
+            notification(downloading, shouldDownload)
+        })
+    }
+
+    private fun notification(downloading: List<Download>, shouldDownload: List<Download>) {
+
+        val notificationDescription = facade?.notificationSettings ?: return
+        val (text, progress) = getTotalProgress(downloading, shouldDownload)
+        val (caption, description) = notificationDescription.progress(text)
+
+        val notification = builder
             .setSmallIcon(notificationDescription.iconId)
-            .setContentTitle(texts.first)
-            .setContentText(texts.second)
-            .setProgress(100, progress, false)
+            .setContentTitle(caption)
+            .setContentText(description)
+            .setProgress(100, (progress * 100).toInt(), shouldDownload.isEmpty())
             .build()
+
+        notificationManager.notify(foregroundNotificationId, notification)
     }
 }

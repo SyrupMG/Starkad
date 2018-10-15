@@ -1,5 +1,6 @@
 package ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces
 
+import android.content.Context
 import android.net.Uri
 import android.os.Parcelable
 import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadService
@@ -66,7 +67,6 @@ fun Downloadable.observe(listener: DownloadStatusListener) {
     DownloadService.register(listener, this)
 }
 
-
 /**
  * Метод для осуществления отписки от событий объекта
  */
@@ -77,13 +77,29 @@ fun Downloadable.forget(listener: DownloadStatusListener) {
 /**
  * Метод стартует/Продолжает загрузку данного объекта
  */
-fun Downloadable.resumeDownload() {
-    DownloadService.download(this)
+fun Downloadable.resumeDownload(`in`: Context) {
+    with(DownloadService) {
+        `in`.download(this@resumeDownload)
+    }
+}
+
+infix fun Context.resume(downloadable: Downloadable) {
+    with(DownloadService) {
+        download(downloadable)
+    }
 }
 
 /**
  * Метод отменяет закачку объекта
  */
-fun Downloadable.cancelDownload() {
-    DownloadService.cancel(this)
+fun Downloadable.cancelDownload(`in`: Context) {
+    with(DownloadService) {
+        `in`.cancel(this@cancelDownload)
+    }
+}
+
+infix fun Context.cancel(downloadable: Downloadable) {
+    with(DownloadService) {
+        cancel(downloadable)
+    }
 }

@@ -22,13 +22,13 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadNotification
 import ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadService
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable
-import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.cancelDownload
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.cancel
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.forget
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.getProgress
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.isDownloadLocalFileExist
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.isDownloading
 import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.observe
-import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.resumeDownload
+import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.resume
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Cellular
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Wifi
@@ -49,6 +49,8 @@ class MainActivity : AppCompatActivity() {
             DownloadableFile("http://mirror.filearena.net/pub/speed/SpeedTest_1024MB.dat", "${filesDir.path}/video/1024mb.dat")
         )
 
+        val app = this.applicationContext
+
         with(DownloadService) {
 
             notifyWith {
@@ -60,8 +62,8 @@ class MainActivity : AppCompatActivity() {
             onReady {
                 val filesAdapter = FilesAdapter(filesLinks) {
                     when {
-                        isDownloading -> cancelDownload()
-                        !isDownloadLocalFileExist -> resumeDownload()
+                        isDownloading -> app cancel this
+                        !isDownloadLocalFileExist -> app resume this
                     }
                 }
 
