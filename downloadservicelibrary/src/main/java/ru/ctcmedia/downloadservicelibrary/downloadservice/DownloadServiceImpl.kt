@@ -202,9 +202,9 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
             fetch.close()
 
             fetchConfig = FetchConfiguration.Builder(this)
-                    .setDownloadConcurrentLimit(value.concurrentDownloads)
-                    .setGlobalNetworkType(value.networkType.fetchNetworkType())
-                    .build()
+                .setDownloadConcurrentLimit(value.concurrentDownloads)
+                .setGlobalNetworkType(value.networkType.fetchNetworkType())
+                .build()
 
             fetch.resumeGroup(DEFAULT_GROUP_ID)
         }
@@ -342,10 +342,10 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
     private fun notification(downloadable: Download, progress: Int, notificationDescription: DownloadNotification): Notification {
         val texts = downloadable.extras.getString(downloadNameKey, "").let { notificationDescription.progress(it) }
         return builder
-                .setSmallIcon(notificationDescription.iconId)
-                .setContentTitle(texts.first)
-                .setContentText(texts.second)
-                .setProgress(100, progress, false)
-                .build()
+            .setSmallIcon(notificationDescription.iconId)
+            .setContentTitle(texts.first)
+            .setContentText(texts.second)
+            .setProgress(100, progress, false)
+            .build()
     }
 }
