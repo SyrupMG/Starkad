@@ -313,7 +313,7 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
 
         val percent = sum.toDouble() / total
 
-        val names = shouldDownload.map { it.extras.getString(downloadNameKey, "") }.filter { it.isNotEmpty() }.joinToString()
+        val names = shouldDownload.asSequence().map { it.extras.getString(downloadNameKey, "") }.filter { it.isNotEmpty() }.joinToString()
 
         return names to percent
     }
