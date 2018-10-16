@@ -9,7 +9,7 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.W
 
 /**
  * Structure which describe:
- * Number of possible concurrent downloads
+ * Number of possible concurrent downloads,
  * The type of network through which you can download.
  */
 @Parcelize
@@ -19,12 +19,16 @@ data class Settings(
 ) : Parcelable
 
 /**
- * Network type:
- * Cellular - Cellular and Wi-Fi
- * Wifi- only Wi-Fi
+ * Network type through which loading occurs.
  */
 enum class NetworkType {
+    /**
+     * When this network type selected - files downloading only by Wi-Fi.
+     */
     Wifi,
+    /**
+     * When this network type selected - files downloading by Wi-Fi and Cellular.
+     */
     Cellular;
 
     internal fun fetchNetworkType() = when (this) {

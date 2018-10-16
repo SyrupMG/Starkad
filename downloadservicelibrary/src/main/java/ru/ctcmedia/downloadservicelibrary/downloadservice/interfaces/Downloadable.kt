@@ -15,53 +15,53 @@ fun Uri.downloadable(): Uri = Uri.parse(toString() + ".downloadable")
 /**
  * Interface that must implement classes that can be downloaded
  * Allows you to subscribe to objects of this interface.
- * can start download
- * cancel download
- * check download status
+ * can start download,
+ * cancel download,
+ * check download status;
  */
 interface Downloadable : Parcelable {
     /**
-     * Unique object id
+     * Unique object id, different for different instances of class.
      */
     val downloadableUniqueId: String
 
     /**
-     * Uri showing where to download the file
+     * Uri showing where to download the file.
      */
     val remoteUrl: Uri
 
     /**
-     * Uri indicating the path where to save the file
+     * Uri indicating the path where to save the file.
      */
     val localUrl: Uri
 
     /**
-     * Stored on disk file name
+     * Stored on disk file name.
      */
     val downloadableName: String?
 }
 
 /**
- * Check local file existing or not
+ * Return true if file is downloaded.
  */
 val Downloadable.isDownloadLocalFileExist: Boolean
     get() = File(localUrl.path).exists()
 
 /**
- * Check for the existence of a temporary file
+ * Field is true if file is downloading.
  */
 val Downloadable.isDownloading: Boolean
     get() = File(localUrl.downloadable().path).exists()
 
 /**
- * Getting the progress of the downloaded file
+ * Getting the progress of the downloaded file.
  */
 fun Downloadable.getProgress(callback: (FileDownloadProgress) -> Unit) {
     DownloadService.progressFor(this, callback)
 }
 
 /**
- * Method to provide subscription to object events
+ * Method subscribe listener to Downloadable events.
  */
 infix fun DownloadStatusListener.observe(downloadable: Downloadable?) {
     downloadable ?: return
@@ -69,7 +69,7 @@ infix fun DownloadStatusListener.observe(downloadable: Downloadable?) {
 }
 
 /**
- * Method for unsubscribing object events
+ * Method unsubscribe listener from Downloadable events.
  */
 infix fun DownloadStatusListener.forget(downloadable: Downloadable?) {
     downloadable ?: return
