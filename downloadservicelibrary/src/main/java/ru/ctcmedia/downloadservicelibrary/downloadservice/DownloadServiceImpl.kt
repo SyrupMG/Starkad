@@ -5,6 +5,7 @@ package ru.ctcmedia.downloadservicelibrary.downloadservice
 import android.app.IntentService
 import android.app.Notification
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -27,6 +28,7 @@ import com.tonyodev.fetch2.Status.NONE
 import com.tonyodev.fetch2.Status.PAUSED
 import com.tonyodev.fetch2.Status.QUEUED
 import com.tonyodev.fetch2.Status.REMOVED
+import com.tonyodev.fetch2.provider.NetworkInfoProvider
 import com.tonyodev.fetch2.util.DEFAULT_GROUP_ID
 import com.tonyodev.fetch2core.DownloadBlock
 import com.tonyodev.fetch2core.Extras
@@ -40,40 +42,23 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.settingsNetwo
 import ru.ctcmedia.downloadservicelibrary.lazyObserving
 import java.io.File
 
+private const val SETTINGS_INTENT_KEY = "settings"
+private const val DOWNLOAD_NAME_KEY = "DOWNLOAD_NAME_KEY"
+private const val NOTIFICATION_ID = 1337_0000
+
 private val completedStatuses = arrayOf(Status.COMPLETED, CANCELLED, FAILED, REMOVED, DELETED)
 private val pendingStatuses = arrayOf(Status.DOWNLOADING, PAUSED)
 private val workingStatuses = pendingStatuses + arrayOf(QUEUED, ADDED, NONE)
-typealias DownloadNotificationDescription = Pair<String?, String?>
 
 /**
  * Класс описывающий уведомление при скачивании файла
  */
-data class DownloadNotification(val iconId: Int, val progress: (downloadableName: String) -> DownloadNotificationDescription)
+data class DownloadNotification(val iconId: Int, val activeTitle: String, val pendingTitle: String)
 
 /**
  * Сервис в котором происходит вся работа
  */
 object DownloadService : android.os.Binder() {
-
-    private val runners = arrayListOf<DownloadService.() -> Unit>()
-
-    /**
-     * Метод который отрабатывает при готовности сервиса к работе
-     */
-    fun onReady(callback: DownloadService.() -> Unit) {
-        service?.run { callback.invoke(this@DownloadService) } ?: runners.add(callback)
-    }
-
-    private val downloadableListeners = mutableMapOf<String, ArrayList<DownloadStatusListener>>()
-
-    /**
-     * Метод назначающий уведомление на сервис
-     */
-    fun notifyWith(notificationDescription: () -> DownloadNotification) {
-        notificationSettings = notificationDescription()
-    }
-
-    internal lateinit var notificationSettings: DownloadNotification
 
     /**
      * Параметры скачивания описываются классом Settings
@@ -86,6 +71,26 @@ object DownloadService : android.os.Binder() {
             service?.config = value
         }
 
+    /**
+     * Метод который отрабатывает при готовности сервиса к работе
+     */
+    fun onReady(callback: DownloadService.() -> Unit) {
+        service?.run { callback.invoke(this@DownloadService) } ?: runners.add(callback)
+    }
+
+    /**
+     * Метод назначающий уведомление на сервис
+     */
+    fun notifyWith(notificationDescription: DownloadNotification) {
+        notificationSettings = notificationDescription
+    }
+
+    private val runners = arrayListOf<DownloadService.() -> Unit>()
+
+    private val downloadableListeners = mutableMapOf<String, ArrayList<DownloadStatusListener>>()
+
+    internal lateinit var notificationSettings: DownloadNotification
+
     internal var service: DownloadServiceImpl? = null
     private lateinit var serviceConnection: ServiceConnection
 
@@ -95,7 +100,6 @@ object DownloadService : android.os.Binder() {
     fun Context.bindContext() {
         serviceConnection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                configuration = service!!.config
                 service!!.facade = this@DownloadService
 
                 runners.forEach { this@DownloadService.it() }
@@ -107,9 +111,12 @@ object DownloadService : android.os.Binder() {
             }
         }
 
-        val intent = Intent(this, DownloadServiceImpl::class.java)
-        ContextCompat.startForegroundService(this, intent)
-        applicationContext.bindService(intent, serviceConnection, 0)
+        Intent(this, DownloadServiceImpl::class.java).also {
+            it.putExtra(SETTINGS_INTENT_KEY, configuration)
+
+            ContextCompat.startForegroundService(this, it)
+            applicationContext.bindService(it, serviceConnection, 0)
+        }
     }
 
     /**
@@ -124,16 +131,22 @@ object DownloadService : android.os.Binder() {
         onReady {
             service?.resume(downloadable)
         }
-        downloadableListeners[downloadable.mixedUniqueId]?.apply {
-            forEach { it.downloadBegan() }
+        notifyListeners(downloadable) { it.downloadBegan() }
+    }
+
+    private fun notifyListeners(downloadable: Downloadable, callbackForEach: (DownloadStatusListener) -> Unit) {
+        notifyListeners(downloadable.mixedUniqueId, callbackForEach)
+    }
+
+    private fun notifyListeners(downloadableId: String, callbackForEach: (DownloadStatusListener) -> Unit) {
+        downloadableListeners[downloadableId]?.apply {
+            forEach(callbackForEach)
         }
     }
 
     internal fun Context.cancel(downloadable: Downloadable) {
         bindContext()
-        downloadableListeners[downloadable.mixedUniqueId]?.apply {
-            forEach { it.downloadFinished() }
-        }
+        notifyListeners(downloadable) { it.downloadFinished() }
         onReady {
             service?.cancel(downloadable)
         }
@@ -146,27 +159,19 @@ object DownloadService : android.os.Binder() {
     }
 
     internal fun onStart(downloadableId: String) {
-        downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadBegan() }
-        }
+        notifyListeners(downloadableId) { it.downloadBegan() }
     }
 
     internal fun onProgress(downloadableId: String, progress: Int) {
-        downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadProgressUpdate(FileDownloadProgress(progress / 100.0)) }
-        }
+        notifyListeners(downloadableId) { it.downloadProgressUpdate(FileDownloadProgress(progress / 100.0)) }
     }
 
     internal fun onError(downloadableId: String) {
-        downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadFailed(Error("Ошибка")) }
-        }
+        notifyListeners(downloadableId) { it.downloadFailed(Error("Ошибка")) }
     }
 
     internal fun onFinish(downloadableId: String) {
-        downloadableListeners[downloadableId]?.apply {
-            forEach { it.downloadFinished() }
-        }
+        notifyListeners(downloadableId) { it.downloadFinished() }
     }
 
     internal fun register(listener: DownloadStatusListener, `for`: Downloadable) {
@@ -185,9 +190,13 @@ private val Downloadable.mixedUniqueId: String
     get() = "${this.javaClass.simpleName}||$downloadableUniqueId"
 
 internal class DownloadServiceImpl : IntentService("DownloadService"), FetchListener {
+    private val networkInfoProvider = NetworkInfoProvider(this)
+    private val networkBroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = updateNotification()
+    }
 
-    companion object {
-        private const val downloadNameKey = "downloadNameKey"
+    init {
+        networkInfoProvider.registerNetworkBroadcastReceiver(networkBroadcastReceiver)
     }
 
     var facade: DownloadService? = null
@@ -200,27 +209,29 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
     fun resume(downloadable: Downloadable) {
         val request = Request(downloadable.remoteUrl.toString(), downloadable.localUrl.downloadable().toString())
         request.tag = downloadable.mixedUniqueId
-        downloadable.downloadableName?.also { request.extras = Extras(mapOf(downloadNameKey to it)) }
+        downloadable.downloadableName?.also { request.extras = Extras(mapOf(DOWNLOAD_NAME_KEY to it)) }
 
         fetch.enqueue(request)
     }
 
     internal var config: Settings
         get() {
-            return Settings(fetchConfig.concurrentLimit, fetchConfig.globalNetworkType.settingsNetworkType())
+            return Settings(fetch.fetchConfiguration.concurrentLimit, fetch.fetchConfiguration.globalNetworkType.settingsNetworkType())
         }
         set(value) {
             fetch.pauseGroup(DEFAULT_GROUP_ID)
             fetch.close()
 
-            fetchConfig = FetchConfiguration.Builder(this)
-                .setDownloadConcurrentLimit(value.concurrentDownloads)
-                .setGlobalNetworkType(value.networkType.fetchNetworkType())
-                .build()
+            fetchConfig = value.fetchConfig()
 
             fetch.resumeGroup(DEFAULT_GROUP_ID)
             organizeQueue()
         }
+
+    private fun Settings.fetchConfig() = FetchConfiguration.Builder(this@DownloadServiceImpl)
+        .setDownloadConcurrentLimit(concurrentDownloads)
+        .setGlobalNetworkType(networkType.fetchNetworkType())
+        .build()
 
     private var fetchConfig: FetchConfiguration by lazyObserving({ FetchConfiguration.Builder(this).build() }, didSet = {
         if (::fetch.isInitialized && !fetch.isClosed) {
@@ -233,12 +244,12 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         private set
 
     override fun onBind(intent: Intent?): IBinder? {
-        fetchConfig = FetchConfiguration.Builder(this).build()
+        fetchConfig = intent?.getParcelableExtra<Settings>(SETTINGS_INTENT_KEY)?.fetchConfig() ?: FetchConfiguration.Builder(this).build()
         return DownloadService.apply { service = this@DownloadServiceImpl }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(foregroundNotificationId, Notification.Builder(this).build())
+        startForeground(NOTIFICATION_ID, Notification.Builder(this).build())
         DownloadService.apply { service = this@DownloadServiceImpl }
         return START_STICKY
     }
@@ -267,8 +278,6 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
 
     private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
 
-    private val foregroundNotificationId = 1
-
     override fun onAdded(download: Download) {
         organizeQueue()
     }
@@ -289,21 +298,22 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
     }
 
     private fun organizeQueue() {
-        fetch.getDownloads(Func { rawList ->
-            val list = rawList.sortedBy { it.id }
-            val working = list.firstOrNull { workingStatuses.contains(it.status) }?.let { true } ?: false
-            val deleted = list.filter { completedStatuses.contains(it.status) }.toTypedArray()
-            val downloading = list.filter { pendingStatuses.contains(it.status) }.toTypedArray()
+        with(fetch) {
+            getDownloads(Func { list ->
+                val working = list.firstOrNull { workingStatuses.contains(it.status) } != null
+                val deleted = list.filter { completedStatuses.contains(it.status) }.toTypedArray()
+                val downloading = list.filter { pendingStatuses.contains(it.status) }.toTypedArray()
 
-            val shouldDownload = downloading.take(config.concurrentDownloads)
-            val shouldPause = downloading.drop(config.concurrentDownloads)
+                val shouldDownload = downloading.take(config.concurrentDownloads)
+                val shouldPause = downloading.drop(config.concurrentDownloads)
 
-            fetch.resume(shouldDownload.asSequence().filter { it.status != DOWNLOADING }.map { it.id }.toList())
-            fetch.pause(shouldPause.asSequence().filter { it.status != PAUSED }.map { it.id }.toList())
-            fetch.delete(deleted.map { it.id })
+                resume(shouldDownload.asSequence().filter { it.status != DOWNLOADING }.map { it.id }.toList())
+                pause(shouldPause.asSequence().filter { it.status != PAUSED }.map { it.id }.toList())
+                delete(deleted.map { it.id })
 
-            if (working) notification(downloading.toList(), shouldDownload) else stopSelf()
-        })
+                if (working) notification(downloading.toList(), shouldDownload) else stopSelf()
+            })
+        }
     }
 
     private fun getTotalProgress(downloading: List<Download>, shouldDownload: List<Download>): Pair<String, Double> {
@@ -313,7 +323,7 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
 
         val percent = sum.toDouble() / total
 
-        val names = shouldDownload.asSequence().map { it.extras.getString(downloadNameKey, "") }.filter { it.isNotEmpty() }.joinToString()
+        val names = shouldDownload.asSequence().map { it.extras.getString(DOWNLOAD_NAME_KEY, "") }.filter { it.isNotEmpty() }.joinToString()
 
         return names to percent
     }
@@ -379,15 +389,18 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
 
         val notificationDescription = facade?.notificationSettings ?: return
         val (text, progress) = getTotalProgress(downloading, shouldDownload)
-        val (caption, description) = notificationDescription.progress(text)
+
+        val goodNetwork = downloading.firstOrNull { networkInfoProvider.isOnAllowedNetwork(it.networkType) } != null
+        val isPending = !goodNetwork || shouldDownload.isEmpty()
+        val caption = if (isPending) notificationDescription.pendingTitle else notificationDescription.activeTitle
 
         val notification = builder
             .setSmallIcon(notificationDescription.iconId)
             .setContentTitle(caption)
-            .setContentText(description)
-            .setProgress(100, (progress * 100).toInt(), shouldDownload.isEmpty())
+            .setContentText(text)
+            .setProgress(100, (progress * 100).toInt(), isPending)
             .build()
 
-        notificationManager.notify(foregroundNotificationId, notification)
+        notificationManager.notify(NOTIFICATION_ID, notification)
     }
 }

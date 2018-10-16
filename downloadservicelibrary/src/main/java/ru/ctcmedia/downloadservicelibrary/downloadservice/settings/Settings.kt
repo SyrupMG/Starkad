@@ -1,7 +1,9 @@
 package ru.ctcmedia.downloadservicelibrary.downloadservice.settings
 
+import android.os.Parcelable
 import com.tonyodev.fetch2.NetworkType.ALL
 import com.tonyodev.fetch2.NetworkType.WIFI_ONLY
+import kotlinx.android.parcel.Parcelize
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Cellular
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Wifi
 
@@ -10,10 +12,11 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.W
  * Кол-во возможных одновременных закачек
  * Тип сети по которому возможно скачивание
  */
+@Parcelize
 data class Settings(
-        val concurrentDownloads: Int = 1,
-        val networkType: NetworkType = Cellular
-)
+    val concurrentDownloads: Int = 1,
+    val networkType: NetworkType = Cellular
+) : Parcelable
 
 /**
  * Тип сети:

@@ -10,7 +10,7 @@ import java.io.File
 /**
  * Расширение добавляющее .downloadable к uri
  */
-fun Uri.downloadable(): Uri = Uri.parse(this.toString() + ".downloadable")
+fun Uri.downloadable(): Uri = Uri.parse(toString() + ".downloadable")
 
 /**
  * Интерфейс который должны имплементировать классы которые могут быть скачаны
@@ -63,27 +63,24 @@ fun Downloadable.getProgress(callback: (FileDownloadProgress) -> Unit) {
 /**
  * Метод для осуществления подписки на события объекта
  */
-fun Downloadable.observe(listener: DownloadStatusListener) {
-    DownloadService.register(listener, this)
+infix fun DownloadStatusListener.observe(downloadable: Downloadable?) {
+    downloadable ?: return
+    DownloadService.register(this, downloadable)
 }
 
 /**
  * Метод для осуществления отписки от событий объекта
  */
-fun Downloadable.forget(listener: DownloadStatusListener) {
-    DownloadService.unregister(listener, this)
+infix fun DownloadStatusListener.forget(downloadable: Downloadable?) {
+    downloadable ?: return
+    DownloadService.unregister(this, downloadable)
 }
 
 /**
  * Метод стартует/Продолжает загрузку данного объекта
  */
-fun Downloadable.resumeDownload(`in`: Context) {
-    with(DownloadService) {
-        `in`.download(this@resumeDownload)
-    }
-}
-
-infix fun Context.resume(downloadable: Downloadable) {
+infix fun Context.resume(downloadable: Downloadable?) {
+    downloadable ?: return
     with(DownloadService) {
         download(downloadable)
     }
@@ -92,13 +89,8 @@ infix fun Context.resume(downloadable: Downloadable) {
 /**
  * Метод отменяет закачку объекта
  */
-fun Downloadable.cancelDownload(`in`: Context) {
-    with(DownloadService) {
-        `in`.cancel(this@cancelDownload)
-    }
-}
-
-infix fun Context.cancel(downloadable: Downloadable) {
+infix fun Context.cancel(downloadable: Downloadable?) {
+    downloadable ?: return
     with(DownloadService) {
         cancel(downloadable)
     }

@@ -4,6 +4,7 @@ package ru.ctcmedia
 
 import android.R.drawable
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.DividerItemDecoration
@@ -32,6 +33,8 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.resume
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Cellular
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Wifi
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.valueOf
+import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
 
 class MainActivity : AppCompatActivity() {
 
@@ -53,11 +56,9 @@ class MainActivity : AppCompatActivity() {
 
         with(DownloadService) {
 
-            notifyWith {
-                DownloadNotification(drawable.ic_popup_sync) {
-                    "Идет загрузка..." to it
-                }
-            }
+            configuration = loadSettings()
+
+            notifyWith(DownloadNotification(drawable.ic_popup_sync, "Идет загрузка...", "Ожидание сети..."))
 
             onReady {
                 val filesAdapter = FilesAdapter(filesLinks) {
@@ -69,14 +70,15 @@ class MainActivity : AppCompatActivity() {
 
                 recyclerView.apply {
                     adapter = filesAdapter
-                    val myLayoutManager = LinearLayoutManager(this@MainActivity)
-                    layoutManager = myLayoutManager
-                    addItemDecoration(DividerItemDecoration(this@MainActivity, myLayoutManager.orientation))
+                    with(LinearLayoutManager(this@MainActivity)) {
+                        layoutManager = this
+                        addItemDecoration(DividerItemDecoration(this@MainActivity, orientation))
+                    }
                 }
 
                 spinner.onItemSelectedListener = object : OnItemSelectedListener {
                     override fun onItemSelected(adapterView: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                        configuration = configuration.copy(concurrentDownloads = position + 1)
+                        configuration = configuration.copy(concurrentDownloads = position + 1).also { saveSettings(it) }
                     }
 
                     override fun onNothingSelected(p0: AdapterView<*>?) {}
@@ -87,7 +89,7 @@ class MainActivity : AppCompatActivity() {
                         R.id.cellularButton -> configuration.copy(networkType = Cellular)
                         R.id.wifiButton -> configuration.copy(networkType = Wifi)
                         else -> throw Exception()
-                    }
+                    }.also { saveSettings(it) }
                 }
 
                 spinner.setSelection(configuration.concurrentDownloads - 1)
@@ -99,6 +101,22 @@ class MainActivity : AppCompatActivity() {
             }
 
             bindContext()
+        }
+    }
+
+    private val sharedSettings by lazy { getSharedPreferences(packageName, Context.MODE_PRIVATE) }
+
+    private fun loadSettings(): Settings {
+        return with(sharedSettings) {
+            Settings(getInt("limit", 1), valueOf(getString("mode", Cellular.name) ?: Cellular.name))
+        }
+    }
+
+    private fun saveSettings(settings: Settings) {
+        with(sharedSettings.edit()) {
+            putInt("limit", settings.concurrentDownloads)
+            putString("mode", settings.networkType.name)
+            apply()
         }
     }
 
@@ -120,7 +138,7 @@ class FilesAdapter(private val files: Array<DownloadableFile>, private val click
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView), DownloadStatusListener {
         var file: DownloadableFile? = null
         fun bind(file: DownloadableFile, click: (Downloadable) -> Unit) {
-            this.file?.forget(this)
+            this forget this.file
 
             val status = when {
                 file.isDownloading -> "cancelled"
@@ -133,7 +151,7 @@ class FilesAdapter(private val files: Array<DownloadableFile>, private val click
             file.getProgress { downloadProgressUpdate(it) }
 
             this.file = file
-            file.observe(this)
+            this observe file
 
             itemView.setOnClickListener { click(file) }
         }
