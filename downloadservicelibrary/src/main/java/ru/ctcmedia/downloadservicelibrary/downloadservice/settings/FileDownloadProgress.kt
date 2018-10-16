@@ -1,6 +1,6 @@
 package ru.ctcmedia.downloadservicelibrary.downloadservice.settings
 
 /**
- * Класс-модель содержащий информацию о текущей закачке
+ * Class containing information about the current download
  */
 data class FileDownloadProgress(val downloadProgress: Double)

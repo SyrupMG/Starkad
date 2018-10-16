@@ -8,9 +8,9 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.C
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.NetworkType.Wifi
 
 /**
- * Класс-структура который описывает:
- * Кол-во возможных одновременных закачек
- * Тип сети по которому возможно скачивание
+ * Structure which describe:
+ * Number of possible concurrent downloads
+ * The type of network through which you can download.
  */
 @Parcelize
 data class Settings(
@@ -19,9 +19,9 @@ data class Settings(
 ) : Parcelable
 
 /**
- * Тип сети:
- * Cellular - мобильная и Wi-Fi
- * Wifi- только Wi-Fi
+ * Network type:
+ * Cellular - Cellular and Wi-Fi
+ * Wifi- only Wi-Fi
  */
 enum class NetworkType {
     Wifi,

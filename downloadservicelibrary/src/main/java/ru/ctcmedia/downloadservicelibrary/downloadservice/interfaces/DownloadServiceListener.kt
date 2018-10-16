@@ -3,26 +3,26 @@ package ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress
 
 /**
- * Интерфейс описывающий события которые могут порождать классы наследующие Downloadable
+ * Interface describing events that can generate classes that inherit Downloadable
  */
 interface DownloadStatusListener {
     /**
-     * Метод вызывается когда объект начал скачиваться
+     * This method is called when downloading has started.
      */
     fun downloadBegan() {}
 
     /**
-     * Метод вызывается при изменении процента скачанного файла
+     * This method is called when the progress of the downloaded file changes.
      */
     fun downloadProgressUpdate(progress: FileDownloadProgress) {}
 
     /**
-     * Метод вызывается при окончании скачивания файла
+     * This method is called at the end of the file download.
      */
     fun downloadFinished() {}
 
     /**
-     * Метод вызывается при ошибке скачивания файла
+     * This method is called when a file download ends with error.
      */
     fun downloadFailed(error: Error) {}
 }

@@ -51,17 +51,17 @@ private val pendingStatuses = arrayOf(Status.DOWNLOADING, PAUSED)
 private val workingStatuses = pendingStatuses + arrayOf(QUEUED, ADDED, NONE)
 
 /**
- * Класс описывающий уведомление при скачивании файла
+ * Class describes notification for downloadable file
  */
 data class DownloadNotification(val iconId: Int, val activeTitle: String, val pendingTitle: String)
 
 /**
- * Сервис в котором происходит вся работа
+ * Service which process all download stuff
  */
 object DownloadService : android.os.Binder() {
 
     /**
-     * Параметры скачивания описываются классом Settings
+     * Download options which are described by the Settings class.
      */
     var configuration: Settings = Settings()
         set(value) {
@@ -72,14 +72,15 @@ object DownloadService : android.os.Binder() {
         }
 
     /**
-     * Метод который отрабатывает при готовности сервиса к работе
+     * Method which calls only when service ready for work
+     * Calls after [bindContext()]
      */
     fun onReady(callback: DownloadService.() -> Unit) {
         service?.run { callback.invoke(this@DownloadService) } ?: runners.add(callback)
     }
 
     /**
-     * Метод назначающий уведомление на сервис
+     * Method set notification on service
      */
     fun notifyWith(notificationDescription: DownloadNotification) {
         notificationSettings = notificationDescription
@@ -95,7 +96,7 @@ object DownloadService : android.os.Binder() {
     private lateinit var serviceConnection: ServiceConnection
 
     /**
-     * Метод, стартующий сервис, после данного метода отрабатывает onReady
+     * Starts service, after this method calls [onReady()]
      */
     fun Context.bindContext() {
         serviceConnection = object : ServiceConnection {
@@ -120,7 +121,7 @@ object DownloadService : android.os.Binder() {
     }
 
     /**
-     * Отвязка сервиса
+     * Unbind service from context
      */
     fun Context.unbindContext() {
         applicationContext.unbindService(serviceConnection)
@@ -199,14 +200,14 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         networkInfoProvider.registerNetworkBroadcastReceiver(networkBroadcastReceiver)
     }
 
-    var facade: DownloadService? = null
+    internal var facade: DownloadService? = null
         set(value) {
             field = value
             fetch.resumeGroup(DEFAULT_GROUP_ID)
             organizeQueue()
         }
 
-    fun resume(downloadable: Downloadable) {
+    internal fun resume(downloadable: Downloadable) {
         val request = Request(downloadable.remoteUrl.toString(), downloadable.localUrl.downloadable().toString())
         request.tag = downloadable.mixedUniqueId
         downloadable.downloadableName?.also { request.extras = Extras(mapOf(DOWNLOAD_NAME_KEY to it)) }
@@ -240,6 +241,7 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         fetch = Fetch.getInstance(fetchConfig)
         fetch.addListener(this)
     })
+
     lateinit var fetch: Fetch
         private set
 
@@ -256,7 +258,7 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
 
     override fun onHandleIntent(intent: Intent?) {}
 
-    fun cancel(downloadable: Downloadable) {
+    internal fun cancel(downloadable: Downloadable) {
         getDownload(downloadable.mixedUniqueId) {
             this ?: return@getDownload
             fetch.cancel(id)
@@ -269,7 +271,7 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         })
     }
 
-    fun progressFor(downloadable: Downloadable, callback: (FileDownloadProgress) -> Unit) {
+    internal fun progressFor(downloadable: Downloadable, callback: (FileDownloadProgress) -> Unit) {
         getDownload(downloadable.mixedUniqueId) {
             this ?: return@getDownload callback(FileDownloadProgress(0.0))
             callback(FileDownloadProgress(progress / 100.0))

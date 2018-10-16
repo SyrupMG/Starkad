@@ -13,55 +13,55 @@ import java.io.File
 fun Uri.downloadable(): Uri = Uri.parse(toString() + ".downloadable")
 
 /**
- * Интерфейс который должны имплементировать классы которые могут быть скачаны
- * Позволяет подписываться на объекты данного интерфейса
- * Стартовать загрузку
- * Отменять загрузку
- * Проверять статус загрузки
+ * Interface that must implement classes that can be downloaded
+ * Allows you to subscribe to objects of this interface.
+ * can start download
+ * cancel download
+ * check download status
  */
 interface Downloadable : Parcelable {
     /**
-     * Уникальный идентификатор объекта
+     * Unique object id
      */
     val downloadableUniqueId: String
 
     /**
-     * Uri указывающий откуда качать файл
+     * Uri showing where to download the file
      */
     val remoteUrl: Uri
 
     /**
-     * Uri указывающий путь куда сохранить файл
+     * Uri indicating the path where to save the file
      */
     val localUrl: Uri
 
     /**
-     * Имя для хранения скачиваемого файла
+     * Stored on disk file name
      */
     val downloadableName: String?
 }
 
 /**
- * Проверка существования полностью скачанного файла на диске
+ * Check local file existing or not
  */
 val Downloadable.isDownloadLocalFileExist: Boolean
     get() = File(localUrl.path).exists()
 
 /**
- * Проверка существования временного файла
+ * Check for the existence of a temporary file
  */
 val Downloadable.isDownloading: Boolean
     get() = File(localUrl.downloadable().path).exists()
 
 /**
- * Получение процента скачанного файла
+ * Getting the progress of the downloaded file
  */
 fun Downloadable.getProgress(callback: (FileDownloadProgress) -> Unit) {
     DownloadService.progressFor(this, callback)
 }
 
 /**
- * Метод для осуществления подписки на события объекта
+ * Method to provide subscription to object events
  */
 infix fun DownloadStatusListener.observe(downloadable: Downloadable?) {
     downloadable ?: return
@@ -69,7 +69,7 @@ infix fun DownloadStatusListener.observe(downloadable: Downloadable?) {
 }
 
 /**
- * Метод для осуществления отписки от событий объекта
+ * Method for unsubscribing object events
  */
 infix fun DownloadStatusListener.forget(downloadable: Downloadable?) {
     downloadable ?: return
@@ -77,7 +77,7 @@ infix fun DownloadStatusListener.forget(downloadable: Downloadable?) {
 }
 
 /**
- * Метод стартует/Продолжает загрузку данного объекта
+ * The method starts / resumes loading this object.
  */
 infix fun Context.resume(downloadable: Downloadable?) {
     downloadable ?: return
@@ -87,7 +87,7 @@ infix fun Context.resume(downloadable: Downloadable?) {
 }
 
 /**
- * Метод отменяет закачку объекта
+ * The method cancels the download
  */
 infix fun Context.cancel(downloadable: Downloadable?) {
     downloadable ?: return
