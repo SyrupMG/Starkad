@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">DownloadService</string>
+    <string-array name="list_entity">
+        <item>Скачивать 1</item>
+        <item>Скачивать 2</item>
+        <item>Скачивать 3</item>
+        <item>Скачивать 4</item>
+        <item>Скачивать 5</item>
+    </string-array>
 </resources>

@@ -1,0 +1,71 @@
+<HTML>
+<HEAD>
+<meta charset="UTF-8">
+<title>DownloadService - downloadservicelibrary</title>
+<link rel="stylesheet" href="../../../style.css">
+</HEAD>
+<BODY>
+<a href="../../index.html">downloadservicelibrary</a>&nbsp;/&nbsp;<a href="../index.html">ru.ctcmedia.downloadservicelibrary.downloadservice</a>&nbsp;/&nbsp;<a href="./index.html">DownloadService</a><br/>
+<br/>
+<h1>DownloadService</h1>
+<code><span class="keyword">object </span><span class="identifier">DownloadService</span>&nbsp;<span class="symbol">:</span>&nbsp;<a href="https://developer.android.com/reference/android/os/Binder.html"><span class="identifier">Binder</span></a></code>
+<p>Service which process all download stuff.</p>
+<h3>Properties</h3>
+<table>
+<tbody>
+<tr>
+<td>
+<p><a href="configuration.html">configuration</a></p>
+</td>
+<td>
+<code><span class="keyword">var </span><span class="identifier">configuration</span><span class="symbol">: </span><a href="../../ru.ctcmedia.downloadservicelibrary.downloadservice.settings/-settings/index.html"><span class="identifier">Settings</span></a></code>
+<p>Download options which are described by the Settings class. \n
+If field changes at runtime, service restarts with new configuration.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3>Functions</h3>
+<table>
+<tbody>
+<tr>
+<td>
+<p><a href="bind-context.html">bindContext</a></p>
+</td>
+<td>
+<code><span class="keyword">fun </span><a href="https://developer.android.com/reference/android/content/Context.html"><span class="identifier">Context</span></a><span class="symbol">.</span><span class="identifier">bindContext</span><span class="symbol">(</span><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>Starts service, after this method calls <a href="on-ready.html">onReady</a>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="notify-with.html">notifyWith</a></p>
+</td>
+<td>
+<code><span class="keyword">fun </span><span class="identifier">notifyWith</span><span class="symbol">(</span><span class="identifier" id="ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadService$notifyWith(ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadNotification)/notificationDescription">notificationDescription</span><span class="symbol">:</span>&nbsp;<a href="../-download-notification/index.html"><span class="identifier">DownloadNotification</span></a><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>Method set notification on service.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="on-ready.html">onReady</a></p>
+</td>
+<td>
+<code><span class="keyword">fun </span><span class="identifier">onReady</span><span class="symbol">(</span><span class="identifier" id="ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadService$onReady(kotlin.Function1((ru.ctcmedia.downloadservicelibrary.downloadservice.DownloadService, kotlin.Unit)))/callback">callback</span><span class="symbol">:</span>&nbsp;<a href="./index.html"><span class="identifier">DownloadService</span></a><span class="symbol">.</span><span class="symbol">(</span><span class="symbol">)</span>&nbsp;<span class="symbol">-&gt;</span>&nbsp;<a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>Method which calls only when service ready for work
+Calls when service binded with context.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="unbind-context.html">unbindContext</a></p>
+</td>
+<td>
+<code><span class="keyword">fun </span><a href="https://developer.android.com/reference/android/content/Context.html"><span class="identifier">Context</span></a><span class="symbol">.</span><span class="identifier">unbindContext</span><span class="symbol">(</span><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>Unbind context from service.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</BODY>
+</HTML>

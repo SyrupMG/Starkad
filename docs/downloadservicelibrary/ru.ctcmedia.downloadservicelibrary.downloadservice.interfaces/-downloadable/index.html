@@ -1,0 +1,96 @@
+<HTML>
+<HEAD>
+<meta charset="UTF-8">
+<title>Downloadable - downloadservicelibrary</title>
+<link rel="stylesheet" href="../../../style.css">
+</HEAD>
+<BODY>
+<a href="../../index.html">downloadservicelibrary</a>&nbsp;/&nbsp;<a href="../index.html">ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces</a>&nbsp;/&nbsp;<a href="./index.html">Downloadable</a><br/>
+<br/>
+<h1>Downloadable</h1>
+<code><span class="keyword">interface </span><span class="identifier">Downloadable</span></code>
+<p>Interface that must implement classes that can be downloaded
+Allows you to subscribe to objects of this interface.
+can start download,
+cancel download,
+check download status;</p>
+<h3>Properties</h3>
+<table>
+<tbody>
+<tr>
+<td>
+<p><a href="downloadable-name.html">downloadableName</a></p>
+</td>
+<td>
+<code><span class="keyword">abstract</span> <span class="keyword">val </span><span class="identifier">downloadableName</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html"><span class="identifier">String</span></a><span class="symbol">?</span></code>
+<p>Stored on disk file name.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="downloadable-unique-id.html">downloadableUniqueId</a></p>
+</td>
+<td>
+<code><span class="keyword">abstract</span> <span class="keyword">val </span><span class="identifier">downloadableUniqueId</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html"><span class="identifier">String</span></a></code>
+<p>Unique object id, different for different instances of class.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="local-url.html">localUrl</a></p>
+</td>
+<td>
+<code><span class="keyword">abstract</span> <span class="keyword">val </span><span class="identifier">localUrl</span><span class="symbol">: </span><a href="https://developer.android.com/reference/android/net/Uri.html"><span class="identifier">Uri</span></a></code>
+<p>Uri indicating the path where to save the file.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="remote-url.html">remoteUrl</a></p>
+</td>
+<td>
+<code><span class="keyword">abstract</span> <span class="keyword">val </span><span class="identifier">remoteUrl</span><span class="symbol">: </span><a href="https://developer.android.com/reference/android/net/Uri.html"><span class="identifier">Uri</span></a></code>
+<p>Uri showing where to download the file.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3>Extension Properties</h3>
+<table>
+<tbody>
+<tr>
+<td>
+<p><a href="../is-download-local-file-exist.html">isDownloadLocalFileExist</a></p>
+</td>
+<td>
+<code><span class="keyword">val </span><a href="./index.html"><span class="identifier">Downloadable</span></a><span class="symbol">.</span><span class="identifier">isDownloadLocalFileExist</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html"><span class="identifier">Boolean</span></a></code>
+<p>Return true if file is downloaded.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="../is-downloading.html">isDownloading</a></p>
+</td>
+<td>
+<code><span class="keyword">val </span><a href="./index.html"><span class="identifier">Downloadable</span></a><span class="symbol">.</span><span class="identifier">isDownloading</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html"><span class="identifier">Boolean</span></a></code>
+<p>Field is true if file is downloading.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3>Extension Functions</h3>
+<table>
+<tbody>
+<tr>
+<td>
+<p><a href="../get-progress.html">getProgress</a></p>
+</td>
+<td>
+<code><span class="keyword">fun </span><a href="./index.html"><span class="identifier">Downloadable</span></a><span class="symbol">.</span><span class="identifier">getProgress</span><span class="symbol">(</span><span class="identifier" id="ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces$getProgress(ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable, kotlin.Function1((ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress, kotlin.Unit)))/callback">callback</span><span class="symbol">:</span>&nbsp;<span class="symbol">(</span><a href="../../ru.ctcmedia.downloadservicelibrary.downloadservice.settings/-file-download-progress/index.html"><span class="identifier">FileDownloadProgress</span></a><span class="symbol">)</span>&nbsp;<span class="symbol">-&gt;</span>&nbsp;<a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>Getting the progress of the downloaded file.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</BODY>
+</HTML>
