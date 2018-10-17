@@ -1,0 +1,78 @@
+<HTML>
+<HEAD>
+<meta charset="UTF-8">
+<title>DownloadStatusListener - downloadservicelibrary</title>
+<link rel="stylesheet" href="../../../style.css">
+</HEAD>
+<BODY>
+<a href="../../index.html">downloadservicelibrary</a>&nbsp;/&nbsp;<a href="../index.html">ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces</a>&nbsp;/&nbsp;<a href="./index.html">DownloadStatusListener</a><br/>
+<br/>
+<h1>DownloadStatusListener</h1>
+<code><span class="keyword">interface </span><span class="identifier">DownloadStatusListener</span></code>
+<p>Interface describing events that can generate classes that inherit Downloadable</p>
+<h3>Functions</h3>
+<table>
+<tbody>
+<tr>
+<td>
+<p><a href="download-began.html">downloadBegan</a></p>
+</td>
+<td>
+<code><span class="keyword">open</span> <span class="keyword">fun </span><span class="identifier">downloadBegan</span><span class="symbol">(</span><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>This method is called when downloading has started.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="download-failed.html">downloadFailed</a></p>
+</td>
+<td>
+<code><span class="keyword">open</span> <span class="keyword">fun </span><span class="identifier">downloadFailed</span><span class="symbol">(</span><span class="identifier" id="ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener$downloadFailed(java.lang.Error)/error">error</span><span class="symbol">:</span>&nbsp;<a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-error/index.html"><span class="identifier">Error</span></a><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>This method is called when a file download ends with error.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="download-finished.html">downloadFinished</a></p>
+</td>
+<td>
+<code><span class="keyword">open</span> <span class="keyword">fun </span><span class="identifier">downloadFinished</span><span class="symbol">(</span><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>This method is called at the end of the file download.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="download-progress-update.html">downloadProgressUpdate</a></p>
+</td>
+<td>
+<code><span class="keyword">open</span> <span class="keyword">fun </span><span class="identifier">downloadProgressUpdate</span><span class="symbol">(</span><span class="identifier" id="ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener$downloadProgressUpdate(ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress)/progress">progress</span><span class="symbol">:</span>&nbsp;<a href="../../ru.ctcmedia.downloadservicelibrary.downloadservice.settings/-file-download-progress/index.html"><span class="identifier">FileDownloadProgress</span></a><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>This method is called when the progress of the downloaded file changes.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3>Extension Functions</h3>
+<table>
+<tbody>
+<tr>
+<td>
+<p><a href="../forget.html">forget</a></p>
+</td>
+<td>
+<code><span class="keyword">infix</span> <span class="keyword">fun </span><a href="./index.html"><span class="identifier">DownloadStatusListener</span></a><span class="symbol">.</span><span class="identifier">forget</span><span class="symbol">(</span><span class="identifier" id="ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces$forget(ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener, ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable)/downloadable">downloadable</span><span class="symbol">:</span>&nbsp;<a href="../-downloadable/index.html"><span class="identifier">Downloadable</span></a><span class="symbol">?</span><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>Method unsubscribe listener from Downloadable events.</p>
+</td>
+</tr>
+<tr>
+<td>
+<p><a href="../observe.html">observe</a></p>
+</td>
+<td>
+<code><span class="keyword">infix</span> <span class="keyword">fun </span><a href="./index.html"><span class="identifier">DownloadStatusListener</span></a><span class="symbol">.</span><span class="identifier">observe</span><span class="symbol">(</span><span class="identifier" id="ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces$observe(ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.DownloadStatusListener, ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable)/downloadable">downloadable</span><span class="symbol">:</span>&nbsp;<a href="../-downloadable/index.html"><span class="identifier">Downloadable</span></a><span class="symbol">?</span><span class="symbol">)</span><span class="symbol">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html"><span class="identifier">Unit</span></a></code>
+<p>Method subscribe listener to Downloadable events.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</BODY>
+</HTML>

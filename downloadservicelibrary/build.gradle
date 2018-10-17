@@ -47,7 +47,7 @@ dokka {
         suppress = true
     }
     outputFormat = 'html'
-    outputDirectory = "$rootDir/javadoc"
+    outputDirectory = "$rootDir/docs"
 }
 
 androidExtensions {

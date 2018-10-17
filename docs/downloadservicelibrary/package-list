@@ -1,0 +1,7 @@
+$dokka.format:html
+$dokka.linkExtension:html
+$dokka.location:ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces$cancel(android.content.Context, ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable)ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces/android.content.-context/cancel.html
+$dokka.location:ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces$resume(android.content.Context, ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.Downloadable)ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces/android.content.-context/resume.html
+ru.ctcmedia.downloadservicelibrary.downloadservice
+ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces
+ru.ctcmedia.downloadservicelibrary.downloadservice.settings
