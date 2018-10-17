@@ -10,7 +10,7 @@ import java.io.File
 /**
  * Расширение добавляющее .downloadable к uri
  */
-fun Uri.downloadable(): Uri = Uri.parse(toString() + ".downloadable")
+internal fun Uri.downloadable(): Uri = Uri.parse(toString() + ".downloadable")
 
 /**
  * Interface that must implement classes that can be downloaded
@@ -19,7 +19,7 @@ fun Uri.downloadable(): Uri = Uri.parse(toString() + ".downloadable")
  * cancel download
  * check download status
  */
-interface Downloadable : Parcelable {
+interface Downloadable {
     /**
      * Unique object id
      */

@@ -1,4 +1,4 @@
-package ru.ctcmedia.downloadservicelibrary
+package ru.ctcmedia.downloadservicelibrary.util
 
 import java.lang.ref.WeakReference
 import kotlin.properties.ReadWriteProperty

@@ -42,6 +42,10 @@ dependencies {
 apply plugin: 'org.jetbrains.dokka-android'
 
 dokka {
+    packageOptions {
+        prefix = "ru.ctcmedia.downloadservicelibrary.util"
+        suppress = true
+    }
     outputFormat = 'html'
     outputDirectory = "$rootDir/javadoc"
 }

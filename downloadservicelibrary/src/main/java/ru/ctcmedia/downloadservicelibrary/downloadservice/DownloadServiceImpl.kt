@@ -16,6 +16,7 @@ import android.support.v4.content.ContextCompat
 import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
+import com.tonyodev.fetch2.FetchConfiguration.Builder
 import com.tonyodev.fetch2.FetchListener
 import com.tonyodev.fetch2.Request
 import com.tonyodev.fetch2.Status
@@ -39,7 +40,7 @@ import ru.ctcmedia.downloadservicelibrary.downloadservice.interfaces.downloadabl
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.FileDownloadProgress
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.Settings
 import ru.ctcmedia.downloadservicelibrary.downloadservice.settings.settingsNetworkType
-import ru.ctcmedia.downloadservicelibrary.lazyObserving
+import ru.ctcmedia.downloadservicelibrary.util.lazyObserving
 import java.io.File
 
 private const val SETTINGS_INTENT_KEY = "settings"
@@ -234,7 +235,7 @@ internal class DownloadServiceImpl : IntentService("DownloadService"), FetchList
         .setGlobalNetworkType(networkType.fetchNetworkType())
         .build()
 
-    private var fetchConfig: FetchConfiguration by lazyObserving({ FetchConfiguration.Builder(this).build() }, didSet = {
+    private var fetchConfig: FetchConfiguration by lazyObserving({ Builder(this).build() }, didSet = {
         if (::fetch.isInitialized && !fetch.isClosed) {
             fetch.removeListener(this)
         }

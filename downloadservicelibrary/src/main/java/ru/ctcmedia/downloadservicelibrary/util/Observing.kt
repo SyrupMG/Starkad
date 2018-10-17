@@ -1,4 +1,4 @@
-package ru.ctcmedia.downloadservicelibrary
+package ru.ctcmedia.downloadservicelibrary.util
 
 import kotlin.properties.ObservableProperty
 import kotlin.properties.ReadWriteProperty
