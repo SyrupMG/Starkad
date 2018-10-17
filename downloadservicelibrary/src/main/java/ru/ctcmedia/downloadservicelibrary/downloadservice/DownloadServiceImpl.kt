@@ -52,17 +52,31 @@ private val pendingStatuses = arrayOf(Status.DOWNLOADING, PAUSED)
 private val workingStatuses = pendingStatuses + arrayOf(QUEUED, ADDED, NONE)
 
 /**
- * Class describes notification for downloadable file
+ * Class describes notification for downloadable file.
  */
-data class DownloadNotification(val iconId: Int, val activeTitle: String, val pendingTitle: String)
+data class DownloadNotification(
+    /**
+     * Notification icon resource.
+     */
+    val iconId: Int,
+    /**
+     * Text which shows when downloading in progress.
+     */
+    val activeTitle: String,
+    /**
+     * Text which shows when downloading queued.
+     */
+    val pendingTitle: String
+)
 
 /**
- * Service which process all download stuff
+ * Service which process all download stuff.
  */
 object DownloadService : android.os.Binder() {
 
     /**
-     * Download options which are described by the Settings class.
+     * Download options which are described by the Settings class. \n
+     * If field changes at runtime, service restarts with new configuration.
      */
     var configuration: Settings = Settings()
         set(value) {
@@ -74,14 +88,14 @@ object DownloadService : android.os.Binder() {
 
     /**
      * Method which calls only when service ready for work
-     * Calls after [bindContext()]
+     * Calls when service binded with context.
      */
     fun onReady(callback: DownloadService.() -> Unit) {
         service?.run { callback.invoke(this@DownloadService) } ?: runners.add(callback)
     }
 
     /**
-     * Method set notification on service
+     * Method set notification on service.
      */
     fun notifyWith(notificationDescription: DownloadNotification) {
         notificationSettings = notificationDescription
@@ -97,7 +111,7 @@ object DownloadService : android.os.Binder() {
     private lateinit var serviceConnection: ServiceConnection
 
     /**
-     * Starts service, after this method calls [onReady()]
+     * Starts service, after this method calls [onReady()].
      */
     fun Context.bindContext() {
         serviceConnection = object : ServiceConnection {
@@ -122,7 +136,7 @@ object DownloadService : android.os.Binder() {
     }
 
     /**
-     * Unbind service from context
+     * Unbind context from service.
      */
     fun Context.unbindContext() {
         applicationContext.unbindService(serviceConnection)
